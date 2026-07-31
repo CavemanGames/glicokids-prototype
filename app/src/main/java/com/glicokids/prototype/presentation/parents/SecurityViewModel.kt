@@ -3,11 +3,14 @@ package com.glicokids.prototype.presentation.parents
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.glicokids.prototype.domain.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class SecurityViewModel @Inject constructor() : ViewModel() {
+class SecurityViewModel @Inject constructor(
+    private val storageRepository: StorageRepository
+) : ViewModel() {
 
     private val _accessGranted = MutableLiveData(false)
     val accessGranted: LiveData<Boolean> = _accessGranted
@@ -20,7 +23,17 @@ class SecurityViewModel @Inject constructor() : ViewModel() {
 
     private var attemptCount = 0
     private val maxAttempts = 3
-    private val correctPin = "1234" // Mocked PIN
+
+    /**
+     * §8.1: `parent_pin` is the only sensitive value and lives in EncryptedSharedPreferences.
+     * On first run we seed the prototype test PIN (1234); from then on the storage is
+     * the source of truth — never a constant in the code.
+     */
+    private val correctPin: String
+        get() = storageRepository.getString(KEY_PARENT_PIN, "").ifBlank {
+            storageRepository.saveString(KEY_PARENT_PIN, DEFAULT_PIN)
+            DEFAULT_PIN
+        }
 
     fun validatePin(pin: String) {
         if (_isLocked.value == true) {
@@ -51,5 +64,10 @@ class SecurityViewModel @Inject constructor() : ViewModel() {
             }
             _accessGranted.value = false
         }
+    }
+
+    companion object {
+        const val KEY_PARENT_PIN = "parent_pin"
+        private const val DEFAULT_PIN = "1234"
     }
 }

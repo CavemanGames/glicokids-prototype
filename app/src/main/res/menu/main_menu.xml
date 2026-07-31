@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- b8 · Menu de opções global. Ícones da marca (já existem no repo) — nunca android.R.drawable. -->
+<!-- b8 · Menu de opções global.
+     SEM android:icon: o overflow do Android não exibe ícone por padrão e forçar isso deforma o item.
+     O glifo do design vai no próprio título, em UMA linha. -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item android:id="@+id/menu_gallery" android:title="Galeria de Medalhas"
-        android:icon="@drawable/ic_menu_medal" app:showAsAction="never"/>
-    <item android:id="@+id/menu_avatar" android:title="Mudar Avatar"
-        android:icon="@drawable/ic_menu_avatar" app:showAsAction="never"/>
-    <item android:id="@+id/menu_help" android:title="Central de Ajuda"
-        android:icon="@drawable/ic_menu_help" app:showAsAction="never"/>
+    <item android:id="@+id/menu_gallery" android:title="★  Galeria de Medalhas" app:showAsAction="never"/>
+    <item android:id="@+id/menu_avatar"  android:title="◆  Mudar Avatar"        app:showAsAction="never"/>
+    <!-- O "?" precisa de escape: no início de um valor de atributo, "?" é referência a attr de tema. -->
+    <item android:id="@+id/menu_help"    android:title="\?  Central de Ajuda"    app:showAsAction="never"/>
 </menu>

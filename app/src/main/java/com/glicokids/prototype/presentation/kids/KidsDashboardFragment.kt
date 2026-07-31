@@ -2,19 +2,18 @@ package com.glicokids.prototype.presentation.kids
 
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.widget.BaseAdapter
-import android.widget.ImageView
-import android.widget.ListPopupWindow
-import android.widget.TextView
-import androidx.appcompat.content.res.AppCompatResources
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.glicokids.prototype.R
 import com.glicokids.prototype.databinding.FragmentKidsDashboardBinding
 import com.glicokids.prototype.presentation.parents.ParentSecurityActivity
@@ -29,13 +28,20 @@ class KidsDashboardFragment : Fragment() {
     private val binding get() = _binding!!
 
     @Inject
-    lateinit var storageRepository: com.glicokids.prototype.domain.repository.StorageRepository
+    lateinit var prefs: com.glicokids.prototype.data.local.AppPreferences
 
-    private val menuOptions = listOf(
-        MenuOption(R.id.menu_gallery, "Galeria de Medalhas", R.drawable.ic_menu_medal),
-        MenuOption(R.id.menu_avatar, "Mudar Avatar", R.drawable.ic_menu_avatar),
-        MenuOption(R.id.menu_help, "Central de Ajuda", R.drawable.ic_menu_help)
+    private val avatars = intArrayOf(
+        R.drawable.ic_avatar_1, R.drawable.ic_avatar_2, R.drawable.ic_avatar_3,
+        R.drawable.ic_avatar_4, R.drawable.ic_avatar_5
     )
+
+    /** A correct PIN (b10) unlocks the Parent Area (b17) through nav_graph. */
+    private val parentAreaLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                findNavController().navigate(R.id.action_kidsDashboard_to_parentArea)
+            }
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,20 +57,19 @@ class KidsDashboardFragment : Fragment() {
 
         setupMenu()
         setupAnimations()
-        updateGlucoseDisplay()
 
         binding.btnParentArea.setOnClickListener {
-            // Requisito Módulo 2: Navegação via Intent com Passagem de Dados (Extras)
-            val intent = Intent(requireContext(), com.glicokids.prototype.presentation.parents.ParentSecurityActivity::class.java).apply {
-                putExtra("CHILD_NAME", "Lucas")
+            // Module 2 requirement: navigation via Intent carrying Extras
+            val intent = Intent(requireContext(), ParentSecurityActivity::class.java).apply {
+                putExtra("CHILD_NAME", prefs.childName)
             }
-            startActivity(intent)
+            parentAreaLauncher.launch(intent)
         }
 
         binding.btnNewMeal.setOnClickListener {
-            // Módulo 3: Abrindo Missão da Refeição via Intent
+            // Module 3: opening the Meal Mission via Intent
             val intent = Intent(requireContext(), NewMealActivity::class.java).apply {
-                putExtra("CHILD_NAME", "Lucas")
+                putExtra("CHILD_NAME", prefs.childName)
             }
             startActivity(intent)
         }
@@ -78,26 +83,24 @@ class KidsDashboardFragment : Fragment() {
         }
     }
 
+    // b8 · The rounded popup comes from the THEME (popupMenuStyle + ThemeOverlay.GlicoKids.Popup),
+    // never from a custom layout. Iconless single-line items, declared in res/menu/main_menu.xml.
     private fun setupMenu() {
-        val popup = ListPopupWindow(requireContext())
-        popup.anchorView = binding.btnMenu
-        popup.setAdapter(MenuAdapter(requireContext(), menuOptions))
-        popup.width = 700 // Approximate width
-        popup.setBackgroundDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.bg_popup_menu))
-        popup.isModal = true
-
-        popup.setOnItemClickListener { _, _, position, _ ->
-            val option = menuOptions[position]
-            when (option.id) {
-                R.id.menu_gallery -> UIHelper.navigateTo(requireContext(), GalleryActivity::class.java)
-                R.id.menu_avatar -> UIHelper.navigateTo(requireContext(), AvatarActivity::class.java)
-                R.id.menu_help -> UIHelper.navigateTo(requireContext(), HelpActivity::class.java)
-            }
-            popup.dismiss()
-        }
+        val popupContext = ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_GlicoKids_Popup)
 
         binding.btnMenu.setOnClickListener {
-            popup.show()
+            PopupMenu(popupContext, binding.btnMenu).apply {
+                menuInflater.inflate(R.menu.main_menu, menu)
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        R.id.menu_gallery -> UIHelper.navigateTo(requireContext(), GalleryActivity::class.java)
+                        R.id.menu_avatar -> UIHelper.navigateTo(requireContext(), AvatarActivity::class.java)
+                        R.id.menu_help -> UIHelper.navigateTo(requireContext(), HelpActivity::class.java)
+                        else -> return@setOnMenuItemClickListener false
+                    }
+                    true
+                }
+            }.show()
         }
     }
 
@@ -123,12 +126,23 @@ class KidsDashboardFragment : Fragment() {
         }
     }
 
-    private fun updateGlucoseDisplay() {
-        val currentGlucose = 112 // Mocked for Dashboard
-        val min = storageRepository.getInt("range_min", 70)
-        val max = storageRepository.getInt("range_max", 180)
+    /**
+     * Module 5 — requirement 2: the home reads what other Activities wrote into the
+     * same SharedPreferences (chosen avatar, XP, coins, target range).
+     */
+    override fun onResume() {
+        super.onResume()
+        binding.ivAvatar.setImageResource(avatars[prefs.avatarIndex.coerceIn(avatars.indices)])
+        binding.tvWelcome.text = "Oi, ${prefs.childName}!"
+        binding.tvCoins.text = prefs.coins.toString()
+        binding.pbXp.progress = prefs.xp % 100
+        binding.tvLevel.text = "Nv ${prefs.xp / 100 + 1}"
+        updateGlucoseDisplay()
+    }
 
-        val status = UIHelper.glucoseStatus(currentGlucose, min, max)
+    private fun updateGlucoseDisplay() {
+        val currentGlucose = 112 // the "live" reading is still simulated in the prototype
+        val status = UIHelper.glucoseStatus(currentGlucose, prefs.rangeMin, prefs.rangeMax)
         val color = UIHelper.getStatusColor(status)
 
         binding.cardGlucose.strokeColor = color
@@ -147,28 +161,5 @@ class KidsDashboardFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    private data class MenuOption(val id: Int, val title: String, val iconRes: Int)
-
-    private class MenuAdapter(val context: Context, val options: List<MenuOption>) : BaseAdapter() {
-        override fun getCount(): Int = options.size
-        override fun getItem(position: Int): Any = options[position]
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_menu_option, parent, false)
-            val option = options[position]
-            
-            val icon = view.findViewById<ImageView>(R.id.ivOptionIcon)
-            val title = view.findViewById<TextView>(R.id.tvOptionTitle)
-            val divider = view.findViewById<View>(R.id.vDivider)
-            
-            icon.setImageResource(option.iconRes)
-            title.text = option.title
-            divider.visibility = if (position == options.size - 1) View.GONE else View.VISIBLE
-            
-            return view
-        }
     }
 }

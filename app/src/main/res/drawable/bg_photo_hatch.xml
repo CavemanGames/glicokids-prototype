@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- b9 · Hachura diagonal 45° do placeholder da foto.
+     Equivale ao repeating-linear-gradient(45deg,#E3DAF7 10px,#EDE7F6 10px,20px) do design doc. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp" android:height="200dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+
+    <path android:pathData="M0,0h100v100h-100z" android:fillColor="#EDE7F6"/>
+
+    <group android:name="listras">
+        <path android:pathData="M-100,100 L0,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-86,100 L14,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-72,100 L28,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-58,100 L42,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-44,100 L56,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-30,100 L70,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-16,100 L84,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M-2,100 L98,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M12,100 L112,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M26,100 L126,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M40,100 L140,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M54,100 L154,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M68,100 L168,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M82,100 L182,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+        <path android:pathData="M96,100 L196,0" android:strokeColor="#E3DAF7" android:strokeWidth="5"/>
+    </group>
+</vector>

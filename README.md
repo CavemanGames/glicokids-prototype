@@ -11,7 +11,7 @@ Managing Type 1 Diabetes in childhood requires constant mathematical calculation
 - **UI Framework**: XML with ViewBinding (Material 3)
 - **Architecture**: MVVM with Clean Architecture
 - **Dependency Injection**: Hilt
-- **Database**: Room (Local-first persistence)
+- **Persistence**: `SharedPreferences` + `EncryptedSharedPreferences` (AES-256) + hand-written `SQLiteOpenHelper` (no Room)
 - **Navigation**: Navigation Component & Intents
 
 ## 4. User Experience (UX)
@@ -58,7 +58,35 @@ The design follows Google's Material Design guidelines, focused on cognitive acc
 - **Enhanced Identity**: Custom vector medals and rarity classification system.
 - **Configurable Health Logic**: User-defined glucose targets with validation and persistent encryption.
 
-### Phase 4 (Planned)
+### Phase 4: Persistence (Module 5)
+
+Three storage layers, each with a single owner — no screen decides on its own where data goes.
+
+| Layer | Class | What it stores | Why |
+|---|---|---|---|
+| `EncryptedSharedPreferences` | `EncryptedStorage` (`glicokids_secure_prefs`) | `parent_pin` | the only sensitive value; AES-256 GCM/SIV |
+| `SharedPreferences` | `AppPreferences` (`glicokids_prefs`) | `child_name`, `avatar_index`, `range_min/max`, `target_glucose`, `isf`, `ic_ratio`, `max_dose`, `xp`, `coins`, `streak`, `onboarding_done`, `last_report_at` | non-sensitive settings read across Activities |
+| SQLite | `GlicoKidsDbHelper` (`glicokids.db` v1) | `glucose_readings`, `meals`, `medals`, `foods` | historical series, queried and aggregated |
+
+**Room is deliberately absent** — the academic requirement is a hand-written `SQLiteOpenHelper`, so the Room dependencies were removed from the build.
+
+Requirement → implementation:
+
+| # | Requirement | Where |
+|---|---|---|
+| 1 | `SharedPreferences` | `AppPreferences` via `getSharedPreferences("glicokids_prefs", MODE_PRIVATE)` |
+| 2 | Sharing between Activities | avatar picked in `AvatarActivity` is read by `KidsDashboardFragment`; target range edited in `ParentAreaFragment` recolors `GlucoseLogActivity` and the home |
+| 3 | `FileOutputStream` | `ReportStorage.generateAndSave()` → `filesDir/relatorio_glicokids.txt` |
+| 4 | `FileInputStream` + `InputStreamReader` | `ReportStorage.readReport()`, shown in a scrollable dialog by "Ver ›" |
+| 5 | External storage | `ReportStorage.saveReportExternally()` — `Environment.getExternalStorageDirectory()` up to API 28, `getExternalFilesDir(DIRECTORY_DOCUMENTS)` from 29; single fail-safe function inside `try/catch`, returns the path used or `null` |
+| 6 | `openRawResource` | seeds the `foods` table from `res/raw/alimentos.json`; `HelpActivity` falls back to `res/raw/ajuda_offline.html` when offline |
+| 7 | `SQLiteOpenHelper` | `GlicoKidsDbHelper` — 4 tables, seeds `foods` and the 6 medals on `onCreate` |
+
+Report rules: generated from the last 7 days of SQLite data, never carries the child's full name (first name + initials), and the external copy requires an explicit confirmation dialog — health data leaving the app sandbox (LGPD). All I/O runs off the main thread through `viewModelScope` / `lifecycleScope` with `Dispatchers.IO`.
+
+Glucose colouring has one source of truth, `UIHelper.glucoseStatus(value, min, max)`, fed by the configured range — there is no hardcoded 70 or 180 anywhere outside the defaults in `AppPreferences`.
+
+### Phase 5 (Planned)
 - **Onboarding Flow**: Responsible party registration (LGPD compliant).
 - **Hero Profile**: Child's profile customization and initial clinical setup.
 - **Secure Authentication**: Google Login integration and PIN creation/recovery system.
