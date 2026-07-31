@@ -1,12 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Medalha bloqueada: disco apagado + cadeado. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="100dp"
-    android:height="100dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-    <path
-        android:fillColor="#D9CFF3"
-        android:pathData="M50,50m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,30c-5.5,0-10,4.5-10,10v5h-2v25h24v-25h-2v-5c0,-5.5-4.5,-10-10,-10zM50,35c2.8,0 5,2.2 5,5v5h-10v-5c0,-2.8 2.2,-5 5,-5z" />
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M8,54a46,46 0 1,0 92,0a46,46 0 1,0 -92,0" android:fillColor="#D9CFF3"/>
+    <path android:pathData="M16,54a38,38 0 1,0 76,0a38,38 0 1,0 -76,0" android:fillColor="#EDE7F6"/>
+    <path android:fillColor="#B0A6CC"
+        android:pathData="M54,30a11,11 0 0,0 -11,11v5h-3a4,4 0 0,0 -4,4v18a4,4 0 0,0 4,4h28a4,4 0 0,0 4,-4V50a4,4 0 0,0 -4,-4h-3v-5a11,11 0 0,0 -11,-11zM54,37a4,4 0 0,1 4,4v5h-8v-5a4,4 0 0,1 4,-4z"/>
 </vector>

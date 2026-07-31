@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.doAfterTextChanged
 import com.glicokids.prototype.databinding.ActivityNewMealBinding
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,6 +19,9 @@ class NewMealActivity : AppCompatActivity() {
     private val TAG = "GlicoKids_Lifecycle"
     private lateinit var binding: ActivityNewMealBinding
     private val viewModel: NewMealViewModel by viewModels()
+
+    /** true enquanto o valor no campo de carboidratos veio da câmera, não da digitação. */
+    private var carbsFromPhoto = false
 
     @Inject
     lateinit var storageRepository: com.glicokids.prototype.domain.repository.StorageRepository
@@ -38,9 +42,23 @@ class NewMealActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnBack.setOnClickListener { finish() }
 
+        // b9 · O chip "estimado pela foto" só aparece quando o valor veio da câmera.
+        binding.tvCarbsSource.visibility = View.GONE
+
         binding.btnTakePhoto.setOnClickListener {
             Toast.makeText(this, "Simulando captura de foto...", Toast.LENGTH_SHORT).show()
-            binding.etCarbohydrates.setText("45") 
+            carbsFromPhoto = true
+            binding.etCarbohydrates.setText("45")
+            binding.tvCarbsSource.visibility = View.VISIBLE
+        }
+
+        // Digitar por cima da estimativa derruba o chip: o valor deixou de vir da foto.
+        binding.etCarbohydrates.doAfterTextChanged {
+            if (carbsFromPhoto) {
+                carbsFromPhoto = false
+            } else {
+                binding.tvCarbsSource.visibility = View.GONE
+            }
         }
 
         binding.btnCalculateBolus.setOnClickListener {

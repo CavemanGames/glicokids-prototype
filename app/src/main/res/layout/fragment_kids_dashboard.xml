@@ -12,6 +12,7 @@
         android:id="@+id/toolbar"
         android:layout_width="1dp" android:layout_height="1dp"
         android:visibility="invisible"
+        app:popupTheme="@style/ThemeOverlay.GlicoKids.Popup"
         app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent"/>
 
     <!-- Header: tudo em UMA linha -->

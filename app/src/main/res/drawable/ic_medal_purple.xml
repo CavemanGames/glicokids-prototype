@@ -1,14 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Medalha DIAMANTE: aro metálico + disco em gradiente + reflexo + glifo de raridade. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="100dp"
-    android:height="100dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-    <path
-        android:fillColor="#7C4DFF"
-        android:strokeColor="#4527A0"
-        android:strokeWidth="3"
-        android:pathData="M50,50m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,25l25,25l-25,25l-25,-25z" />
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+
+    <path android:pathData="M8,54a46,46 0 1,0 92,0a46,46 0 1,0 -92,0"
+        android:fillColor="#251356"/>
+    <path android:pathData="M16,54a38,38 0 1,0 76,0a38,38 0 1,0 -76,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="38" android:centerY="34" android:gradientRadius="60">
+                <item android:offset="0" android:color="#D8C9FF"/>
+                <item android:offset="0.6" android:color="#7C4DFF"/>
+                <item android:offset="1" android:color="#3A2380"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M26,32a14,6 0 1,0 28,0a14,6 0 1,0 -28,0" android:fillColor="#6EFFFFFF"/>
+    <path android:pathData="M54,30l20,24 -20,24 -20,-24z" android:fillColor="#FFFFFF"/>
 </vector>

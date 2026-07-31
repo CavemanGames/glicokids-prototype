@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilos de FIDELIDADE VISUAL do GlicoKids.
+     Passo obrigatório: no tema do app (values/themes.xml) adicionar os 3 itens indicados em PATCHES.md. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Menu de opções (b8): popup branco com cantos 18dp, item em UMA linha -->
+    <style name="ShapeAppearance.GlicoKids.Popup" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <style name="Widget.GlicoKids.PopupMenu" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/bg_popup_rounded</item>
+        <item name="android:popupElevation">12dp</item>
+        <item name="android:dropDownWidth">220dp</item>
+    </style>
+
+    <style name="ThemeOverlay.GlicoKids.Popup" parent="ThemeOverlay.Material3.Light">
+        <item name="android:textAppearanceLargePopupMenu">@style/TextAppearance.GlicoKids.MenuItem</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.GlicoKids.Popup</item>
+    </style>
+
+    <style name="TextAppearance.GlicoKids.MenuItem" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <!-- Botões do design (3D): nunca a pílula padrão do Material nos CTAs -->
+    <style name="Widget.GlicoKids.Button.Primary" parent="android:Widget">
+        <!-- Sem backgroundTint=@null o MaterialButton pinta por cima do drawable 3D
+             e o CTA vira a pílula padrão do Material (regra 1 do PATCHES.md). -->
+        <item name="backgroundTint">@null</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:background">@drawable/bg_button_primary_3d</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="Widget.GlicoKids.Button.Gold" parent="Widget.GlicoKids.Button.Primary">
+        <item name="android:background">@drawable/bg_button_gold_3d</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <style name="Widget.GlicoKids.Button.Outline" parent="Widget.GlicoKids.Button.Primary">
+        <item name="android:background">@drawable/bg_button_white_3d</item>
+        <item name="android:textColor">@color/primary_dark</item>
+    </style>
+</resources>

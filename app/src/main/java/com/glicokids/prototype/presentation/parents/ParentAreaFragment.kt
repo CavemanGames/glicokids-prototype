@@ -48,8 +48,7 @@ class ParentAreaFragment : Fragment() {
         binding.rowTarget.setOnClickListener { showParamDialog("Alvo", "Alvo Glicêmico", "target", 70, 150, "100 mg/dL") }
         binding.rowRange.setOnClickListener { showRangeDialog() }
         binding.rowMaxDose.setOnClickListener { showParamDialog("Trava", "Dose Máxima", "max_dose", 1, 50, "6 UI") }
-        
-        binding.btnEditParams.setOnClickListener { UIHelper.showToast(requireContext(), "Use as linhas acima para editar cada item") }
+        // b18 · Não existe mais botão "Editar parâmetros": a edição é sempre por toque na linha.
     }
 
     private fun observeViewModel() {

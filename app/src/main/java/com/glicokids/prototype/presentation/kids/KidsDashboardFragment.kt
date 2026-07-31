@@ -2,19 +2,18 @@ package com.glicokids.prototype.presentation.kids
 
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.widget.BaseAdapter
-import android.widget.ImageView
-import android.widget.ListPopupWindow
-import android.widget.TextView
-import androidx.appcompat.content.res.AppCompatResources
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.glicokids.prototype.R
 import com.glicokids.prototype.databinding.FragmentKidsDashboardBinding
 import com.glicokids.prototype.presentation.parents.ParentSecurityActivity
@@ -31,11 +30,13 @@ class KidsDashboardFragment : Fragment() {
     @Inject
     lateinit var storageRepository: com.glicokids.prototype.domain.repository.StorageRepository
 
-    private val menuOptions = listOf(
-        MenuOption(R.id.menu_gallery, "Galeria de Medalhas", R.drawable.ic_menu_medal),
-        MenuOption(R.id.menu_avatar, "Mudar Avatar", R.drawable.ic_menu_avatar),
-        MenuOption(R.id.menu_help, "Central de Ajuda", R.drawable.ic_menu_help)
-    )
+    /** PIN correto (b10) libera a Área dos Pais (b17) pelo nav_graph. */
+    private val parentAreaLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                findNavController().navigate(R.id.action_kidsDashboard_to_parentArea)
+            }
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -55,10 +56,10 @@ class KidsDashboardFragment : Fragment() {
 
         binding.btnParentArea.setOnClickListener {
             // Requisito Módulo 2: Navegação via Intent com Passagem de Dados (Extras)
-            val intent = Intent(requireContext(), com.glicokids.prototype.presentation.parents.ParentSecurityActivity::class.java).apply {
+            val intent = Intent(requireContext(), ParentSecurityActivity::class.java).apply {
                 putExtra("CHILD_NAME", "Lucas")
             }
-            startActivity(intent)
+            parentAreaLauncher.launch(intent)
         }
 
         binding.btnNewMeal.setOnClickListener {
@@ -78,26 +79,24 @@ class KidsDashboardFragment : Fragment() {
         }
     }
 
+    // b8 · O popup arredondado vem do TEMA (popupMenuStyle + ThemeOverlay.GlicoKids.Popup),
+    // nunca de layout customizado. Itens sem ícone, em uma linha, definidos em res/menu/main_menu.xml.
     private fun setupMenu() {
-        val popup = ListPopupWindow(requireContext())
-        popup.anchorView = binding.btnMenu
-        popup.setAdapter(MenuAdapter(requireContext(), menuOptions))
-        popup.width = 700 // Approximate width
-        popup.setBackgroundDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.bg_popup_menu))
-        popup.isModal = true
-
-        popup.setOnItemClickListener { _, _, position, _ ->
-            val option = menuOptions[position]
-            when (option.id) {
-                R.id.menu_gallery -> UIHelper.navigateTo(requireContext(), GalleryActivity::class.java)
-                R.id.menu_avatar -> UIHelper.navigateTo(requireContext(), AvatarActivity::class.java)
-                R.id.menu_help -> UIHelper.navigateTo(requireContext(), HelpActivity::class.java)
-            }
-            popup.dismiss()
-        }
+        val popupContext = ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_GlicoKids_Popup)
 
         binding.btnMenu.setOnClickListener {
-            popup.show()
+            PopupMenu(popupContext, binding.btnMenu).apply {
+                menuInflater.inflate(R.menu.main_menu, menu)
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        R.id.menu_gallery -> UIHelper.navigateTo(requireContext(), GalleryActivity::class.java)
+                        R.id.menu_avatar -> UIHelper.navigateTo(requireContext(), AvatarActivity::class.java)
+                        R.id.menu_help -> UIHelper.navigateTo(requireContext(), HelpActivity::class.java)
+                        else -> return@setOnMenuItemClickListener false
+                    }
+                    true
+                }
+            }.show()
         }
     }
 
@@ -147,28 +146,5 @@ class KidsDashboardFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    private data class MenuOption(val id: Int, val title: String, val iconRes: Int)
-
-    private class MenuAdapter(val context: Context, val options: List<MenuOption>) : BaseAdapter() {
-        override fun getCount(): Int = options.size
-        override fun getItem(position: Int): Any = options[position]
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val view = convertView ?: LayoutInflater.from(context).inflate(R.layout.item_menu_option, parent, false)
-            val option = options[position]
-            
-            val icon = view.findViewById<ImageView>(R.id.ivOptionIcon)
-            val title = view.findViewById<TextView>(R.id.tvOptionTitle)
-            val divider = view.findViewById<View>(R.id.vDivider)
-            
-            icon.setImageResource(option.iconRes)
-            title.text = option.title
-            divider.visibility = if (position == options.size - 1) View.GONE else View.VISIBLE
-            
-            return view
-        }
     }
 }

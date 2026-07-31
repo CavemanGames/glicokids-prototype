@@ -68,7 +68,8 @@
         android:layout_marginTop="44dp"
         android:paddingHorizontal="40dp"
         android:background="@drawable/bg_button_white_3d" app:backgroundTint="@null"
-        android:text="Voltar à base 🚀" android:textAllCaps="false"
+        android:text="Voltar à base" android:textAllCaps="false"
+        android:drawablePadding="10dp" app:drawableEndCompat="@drawable/ic_rocket_small"
         android:textColor="#00785B" android:textSize="16sp" android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/tvStreak"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>

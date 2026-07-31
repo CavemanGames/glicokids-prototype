@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- b9 · Missão da Refeição. SUBSTITUI o do staging.
+     Correções de fidelidade: botões com bg_button_*_3d (nada de backgroundTint na pílula padrão),
+     emoji trocado por vector (ic_camera_custom / ic_rocket_small), campo de glicemia com
+     bg_input_field (estava usando bg_circle_white), chip "estimado pela foto" fora do EditText. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -14,199 +18,156 @@
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/bg_circle_white"
-            android:src="@drawable/ic_back_ink"
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
             android:contentDescription="Voltar"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent"/>
 
         <TextView
             android:id="@+id/tvScreenTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:text="Missão da Refeição"
-            android:textColor="@color/ink"
-            android:textSize="21sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@id/btnBack"
-            app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintTop_toTopOf="@id/btnBack" />
+            android:textColor="@color/ink" android:textSize="21sp" android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="@id/btnBack" app:layout_constraintBottom_toBottomOf="@id/btnBack"
+            app:layout_constraintStart_toEndOf="@id/btnBack"/>
 
-        <!-- Photo Selection Section -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardPhoto"
-            android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_width="match_parent" android:layout_height="220dp"
             android:layout_marginTop="24dp"
-            app:cardCornerRadius="24dp"
-            app:cardElevation="2dp"
+            app:cardCornerRadius="24dp" app:cardElevation="2dp"
             app:cardBackgroundColor="@android:color/white"
             app:layout_constraintTop_toBottomOf="@id/btnBack">
-
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="16dp">
+                android:layout_width="match_parent" android:layout_height="match_parent">
 
                 <ImageView
                     android:id="@+id/ivMealPhoto"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
+                    android:layout_width="match_parent" android:layout_height="match_parent"
                     android:scaleType="centerCrop"
+                    android:contentDescription="Foto do prato"/>
+
+                <ImageView
+                    android:id="@+id/ivPhotoPlaceholder"
+                    android:layout_width="72dp" android:layout_height="72dp"
                     android:src="@drawable/ic_camera_custom"
-                    android:alpha="0.3"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    android:contentDescription="Foto do prato" />
+                    android:alpha="0.25"
+                    android:contentDescription="Nenhuma foto ainda"
+                    app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintVertical_bias="0.35"/>
 
                 <Button
                     android:id="@+id/btnTakePhoto"
-                    android:layout_width="wrap_content"
-                    android:layout_height="56dp"
-                    android:text="📷 Fotografar o prato"
-                    android:backgroundTint="@color/gold"
-                    android:textColor="@color/ink"
-                    android:textStyle="bold"
-                    app:layout_constraintTop_toTopOf="parent"
+                    style="@style/Widget.GlicoKids.Button.Gold"
+                    android:layout_width="wrap_content" android:layout_height="56dp"
+                    android:layout_marginBottom="20dp"
+                    android:insetTop="0dp" android:insetBottom="0dp"
+                    android:paddingHorizontal="24dp"
+                    android:drawableStart="@drawable/ic_camera_small" android:drawablePadding="8dp"
+                    android:text="Fotografar o prato" android:textSize="15sp"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent" />
-
+                    app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/tvIaHint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="A IA estima os carboidratos (simulado no MVP)"
-            android:textColor="@color/text_muted_light"
-            android:textSize="11sp"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:text="A IA estima os carboidratos (simulado no protótipo)"
+            android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"
             app:layout_constraintTop_toBottomOf="@id/cardPhoto"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
 
-        <!-- Inputs Section -->
-        <TextView
-            android:id="@+id/lblCarbs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Carboidratos (g)"
-            android:textColor="@color/ink"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/tvIaHint"
-            app:layout_constraintStart_toStartOf="parent" />
+        <LinearLayout
+            android:id="@+id/llCarbsLabel"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="22dp" android:orientation="horizontal" android:gravity="center_vertical"
+            app:layout_constraintTop_toBottomOf="@id/tvIaHint">
+            <TextView
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="Carboidratos (g)"
+                android:textColor="@color/ink" android:textSize="14sp" android:textStyle="bold"/>
+            <TextView
+                android:id="@+id/tvCarbsSource"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip_purple_soft"
+                android:paddingHorizontal="10dp" android:paddingVertical="4dp"
+                android:text="estimado pela foto"
+                android:textColor="@color/primary_dark" android:textSize="11sp" android:textStyle="bold"/>
+        </LinearLayout>
 
         <EditText
             android:id="@+id/etCarbohydrates"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_width="match_parent" android:layout_height="60dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_input_purple"
             android:hint="Ex: 45"
-            android:textColorHint="@color/text_muted_light"
-            android:textColor="@color/ink"
+            android:importantForAutofill="no"
             android:inputType="numberDecimal"
             android:paddingHorizontal="20dp"
-            app:layout_constraintTop_toBottomOf="@id/lblCarbs" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="estimado pela foto"
-            android:textColor="@color/text_muted_light"
-            android:textSize="12sp"
-            android:layout_marginEnd="16dp"
-            app:layout_constraintBottom_toBottomOf="@id/etCarbohydrates"
-            app:layout_constraintTop_toTopOf="@id/etCarbohydrates"
-            app:layout_constraintEnd_toEndOf="@id/etCarbohydrates" />
+            android:textColor="@color/ink" android:textColorHint="@color/text_muted_light"
+            android:textSize="17sp" android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/llCarbsLabel"/>
 
         <TextView
             android:id="@+id/lblGlucose"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Glicemia atual (mg/dL)"
-            android:textColor="@color/ink"
-            android:textSize="14sp"
-            android:textStyle="bold"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:text="Glicemia atual (mg/dL)"
+            android:textColor="@color/ink" android:textSize="14sp" android:textStyle="bold"
             app:layout_constraintTop_toBottomOf="@id/etCarbohydrates"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"/>
 
         <EditText
             android:id="@+id/etCurrentGlucose"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_width="match_parent" android:layout_height="60dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/bg_circle_white"
-            android:elevation="0dp"
+            android:background="@drawable/bg_input_field"
             android:hint="Ex: 110"
-            android:textColorHint="@color/text_muted_light"
-            android:textColor="@color/ink"
+            android:importantForAutofill="no"
             android:inputType="number"
             android:paddingHorizontal="20dp"
-            app:layout_constraintTop_toBottomOf="@id/lblGlucose" />
+            android:textColor="@color/ink" android:textColorHint="@color/text_muted_light"
+            android:textSize="17sp" android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/lblGlucose"/>
 
-        <!-- 3D Action Button -->
         <Button
             android:id="@+id/btnCalculateBolus"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_marginTop="32dp"
-            android:text="🚀 Calcular Bolus de Insulina"
-            android:background="@drawable/bg_button_primary_3d"
-            app:backgroundTint="@null"
-            android:textColor="@android:color/white"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/etCurrentGlucose"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            style="@style/Widget.GlicoKids.Button.Primary"
+            android:layout_width="match_parent" android:layout_height="64dp"
+            android:layout_marginTop="28dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:drawableStart="@drawable/ic_rocket_small" android:drawablePadding="10dp"
+            android:text="Calcular Bolus de Insulina" android:textSize="16sp"
+            app:layout_constraintTop_toBottomOf="@id/etCurrentGlucose"/>
 
-        <!-- Result Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/llResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
             android:visibility="gone"
-            app:cardCornerRadius="22dp"
-            app:cardBackgroundColor="#E0F2F1"
-            app:strokeWidth="1.5dp"
-            app:strokeColor="@color/teal"
+            app:cardCornerRadius="22dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="#DFF7EE"
+            app:strokeWidth="1.5dp" app:strokeColor="@color/teal_dark"
             app:layout_constraintTop_toBottomOf="@id/btnCalculateBolus"
             tools:visibility="visible">
-
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:gravity="center">
-
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center" android:padding="20dp">
                 <TextView
                     android:id="@+id/tvCalculationResult"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="Dose sugerida: 3,5 UI"
-                    android:textColor="@color/teal_dark"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
+                    android:textColor="#00785B" android:textSize="20sp" android:textStyle="bold"/>
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
                     android:text="estimativa conservadora · confirme com um adulto"
-                    android:textColor="@color/text_muted_light"
-                    android:textSize="11sp" />
+                    android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

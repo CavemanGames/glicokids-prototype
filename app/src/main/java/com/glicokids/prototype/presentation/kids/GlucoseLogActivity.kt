@@ -23,7 +23,14 @@ class GlucoseLogActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupListeners()
+        applyInputMode(sensor = binding.tgInputMode.checkedButtonId == binding.btnModeSensor.id)
         updateDisplay()
+    }
+
+    /** b16 · O banner do sensor só existe no modo Sensor; "Digitar" mostra o teclado. */
+    private fun applyInputMode(sensor: Boolean) {
+        binding.cvSensorBanner.visibility = if (sensor) View.VISIBLE else View.GONE
+        binding.glKeypad.visibility = if (sensor) View.GONE else View.VISIBLE
     }
 
     private fun setupListeners() {
@@ -60,15 +67,7 @@ class GlucoseLogActivity : AppCompatActivity() {
         }
 
         binding.tgInputMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) {
-                if (checkedId == binding.btnModeSensor.id) {
-                    binding.cvSensorBanner.visibility = View.VISIBLE
-                    binding.glKeypad.visibility = View.GONE
-                } else {
-                    binding.cvSensorBanner.visibility = View.GONE
-                    binding.glKeypad.visibility = View.VISIBLE
-                }
-            }
+            if (isChecked) applyInputMode(sensor = checkedId == binding.btnModeSensor.id)
         }
     }
 

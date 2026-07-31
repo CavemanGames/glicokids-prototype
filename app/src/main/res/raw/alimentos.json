@@ -1,0 +1,18 @@
+[
+  { "nome": "Arroz branco cozido",       "porcao": "4 colheres de sopa", "gramas": 100, "carboidrato_g": 28 },
+  { "nome": "Feijão carioca cozido",     "porcao": "1 concha média",     "gramas": 80,  "carboidrato_g": 11 },
+  { "nome": "Macarrão cozido",           "porcao": "1 pegador",          "gramas": 100, "carboidrato_g": 30 },
+  { "nome": "Batata cozida",             "porcao": "1 unidade média",    "gramas": 100, "carboidrato_g": 17 },
+  { "nome": "Pão francês",               "porcao": "1 unidade",          "gramas": 50,  "carboidrato_g": 28 },
+  { "nome": "Pão de forma integral",     "porcao": "1 fatia",            "gramas": 25,  "carboidrato_g": 12 },
+  { "nome": "Leite integral",            "porcao": "1 copo",             "gramas": 200, "carboidrato_g": 9 },
+  { "nome": "Iogurte natural",           "porcao": "1 pote",             "gramas": 170, "carboidrato_g": 8 },
+  { "nome": "Banana prata",              "porcao": "1 unidade",          "gramas": 70,  "carboidrato_g": 16 },
+  { "nome": "Maçã",                      "porcao": "1 unidade média",    "gramas": 130, "carboidrato_g": 18 },
+  { "nome": "Suco de laranja natural",   "porcao": "1 copo",             "gramas": 200, "carboidrato_g": 20 },
+  { "nome": "Bolo simples",              "porcao": "1 fatia",            "gramas": 60,  "carboidrato_g": 32 },
+  { "nome": "Biscoito água e sal",       "porcao": "4 unidades",         "gramas": 25,  "carboidrato_g": 18 },
+  { "nome": "Cenoura crua",              "porcao": "1 unidade pequena",  "gramas": 60,  "carboidrato_g": 5 },
+  { "nome": "Ovo cozido",                "porcao": "1 unidade",          "gramas": 50,  "carboidrato_g": 0 },
+  { "nome": "Peito de frango grelhado",  "porcao": "1 filé",             "gramas": 100, "carboidrato_g": 0 }
+]

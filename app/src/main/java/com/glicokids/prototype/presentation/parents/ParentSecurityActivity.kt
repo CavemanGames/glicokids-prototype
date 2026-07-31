@@ -74,6 +74,9 @@ class ParentSecurityActivity : AppCompatActivity() {
         viewModel.accessGranted.observe(this) { granted ->
             if (granted) {
                 Toast.makeText(this, "Acesso Concedido!", Toast.LENGTH_SHORT).show()
+                // Quem abriu a trava decide para onde ir: devolvemos o resultado
+                // em vez de só fechar (antes disso a Área dos Pais era inalcançável).
+                setResult(RESULT_OK)
                 finish()
             } else if (currentPin.length == 4) {
                 // Auto-clear on wrong PIN
