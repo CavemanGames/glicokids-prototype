@@ -53,7 +53,7 @@ class ParentAreaFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Volta do registro de glicemia/refeição já com os dados novos do SQLite.
+        // Coming back from logging a reading or a meal, already with fresh SQLite data.
         viewModel.refresh()
     }
 
@@ -128,7 +128,7 @@ class ParentAreaFragment : Fragment() {
     }
 
     // ------------------------------------------------------------------
-    // Gráfico dos 7 dias — dados do SQLite, cor sempre por glucoseStatus
+    // 7-day chart — data from SQLite, colour always through glucoseStatus
     // ------------------------------------------------------------------
 
     private fun renderWeekChart(bars: List<ParentAreaViewModel.DayBar>) {
@@ -170,17 +170,17 @@ class ParentAreaFragment : Fragment() {
     }
 
     // ------------------------------------------------------------------
-    // Relatório
+    // Report
     // ------------------------------------------------------------------
 
-    /** Requisito 3 — FileOutputStream. */
+    /** Requirement 3 — FileOutputStream. */
     private fun exportReport() {
         viewModel.exportReport { _ ->
             UIHelper.showToast(requireContext(), "Relatório gerado em relatorio_glicokids.txt")
         }
     }
 
-    /** Requisito 4 — FileInputStream + InputStreamReader, exibido em diálogo rolável. */
+    /** Requirement 4 — FileInputStream + InputStreamReader, shown in a scrollable dialog. */
     private fun showReport() {
         viewModel.readReport { content ->
             if (content == null) {
@@ -207,7 +207,7 @@ class ParentAreaFragment : Fragment() {
         }
     }
 
-    /** Requisito 5 — dado de saúde saindo do sandbox exige confirmação (LGPD). */
+    /** Requirement 5 — health data leaving the sandbox requires confirmation (LGPD). */
     private fun confirmExternalCopy() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Salvar cópia fora do app?")
@@ -229,7 +229,7 @@ class ParentAreaFragment : Fragment() {
     }
 
     // ------------------------------------------------------------------
-    // Edição de parâmetros (b18) — sempre diálogo validado, nunca inline
+    // Parameter editing (b18) — always a validated dialog, never inline
     // ------------------------------------------------------------------
 
     private fun showParamDialog(

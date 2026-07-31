@@ -7,13 +7,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Módulo 5 — requisitos 1 e 2: `SharedPreferences` comum, compartilhada entre Activities.
+ * Module 5 — requirements 1 and 2: plain `SharedPreferences`, shared across Activities.
  *
- * Dono das preferências e dos parâmetros clínicos NÃO sensíveis (handoff §8.1).
- * O `parent_pin` NÃO mora aqui: é o único dado sensível e fica no
+ * Owns the non-sensitive settings and clinical parameters (handoff §8.1).
+ * `parent_pin` does NOT live here: it is the only sensitive value and stays in
  * [EncryptedStorage] (EncryptedSharedPreferences).
  *
- * Os padrões vivem só neste arquivo — nenhuma tela repete 70, 180 ou 100.
+ * Defaults live in this file alone — no screen repeats 70, 180 or 100.
  */
 @Singleton
 class AppPreferences @Inject constructor(
@@ -23,7 +23,7 @@ class AppPreferences @Inject constructor(
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // --- Perfil da criança ---
+    // --- Child profile ---
     var childName: String
         get() = prefs.getString(KEY_CHILD_NAME, DEFAULT_CHILD_NAME) ?: DEFAULT_CHILD_NAME
         set(value) = prefs.edit().putString(KEY_CHILD_NAME, value).apply()
@@ -32,7 +32,7 @@ class AppPreferences @Inject constructor(
         get() = prefs.getInt(KEY_AVATAR_INDEX, 0)
         set(value) = prefs.edit().putInt(KEY_AVATAR_INDEX, value).apply()
 
-    // --- Parâmetros clínicos (editáveis na Área dos Pais) ---
+    // --- Clinical parameters (editable in the Parent Area) ---
     var rangeMin: Int
         get() = prefs.getInt(KEY_RANGE_MIN, DEFAULT_RANGE_MIN)
         set(value) = prefs.edit().putInt(KEY_RANGE_MIN, value).apply()
@@ -45,22 +45,22 @@ class AppPreferences @Inject constructor(
         get() = prefs.getInt(KEY_TARGET_GLUCOSE, DEFAULT_TARGET_GLUCOSE)
         set(value) = prefs.edit().putInt(KEY_TARGET_GLUCOSE, value).apply()
 
-    /** Fator de sensibilidade à insulina (FSI). */
+    /** Insulin sensitivity factor (ISF). */
     var isf: Int
         get() = prefs.getInt(KEY_ISF, DEFAULT_ISF)
         set(value) = prefs.edit().putInt(KEY_ISF, value).apply()
 
-    /** Relação insulina/carboidrato (I/C). */
+    /** Insulin-to-carbohydrate ratio (I/C). */
     var icRatio: Int
         get() = prefs.getInt(KEY_IC_RATIO, DEFAULT_IC_RATIO)
         set(value) = prefs.edit().putInt(KEY_IC_RATIO, value).apply()
 
-    /** Trava de dose máxima, em unidades de insulina. */
+    /** Maximum dose lock, in insulin units. */
     var maxDose: Int
         get() = prefs.getInt(KEY_MAX_DOSE, DEFAULT_MAX_DOSE)
         set(value) = prefs.edit().putInt(KEY_MAX_DOSE, value).apply()
 
-    // --- Gamificação ---
+    // --- Gamification ---
     var xp: Int
         get() = prefs.getInt(KEY_XP, 0)
         set(value) = prefs.edit().putInt(KEY_XP, value).apply()
@@ -73,17 +73,17 @@ class AppPreferences @Inject constructor(
         get() = prefs.getInt(KEY_STREAK, 0)
         set(value) = prefs.edit().putInt(KEY_STREAK, value).apply()
 
-    // --- Estado do app ---
+    // --- App state ---
     var onboardingDone: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
-    /** Epoch millis da última geração do relatório; 0 = nunca gerado. */
+    /** Epoch millis of the last report generation; 0 = never generated. */
     var lastReportAt: Long
         get() = prefs.getLong(KEY_LAST_REPORT_AT, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_REPORT_AT, value).apply()
 
-    /** Grava a faixa alvo em uma única transação — as duas pontas mudam juntas. */
+    /** Writes the target range in a single transaction — both ends change together. */
     fun saveTargetRange(min: Int, max: Int) {
         prefs.edit()
             .putInt(KEY_RANGE_MIN, min)
@@ -116,7 +116,7 @@ class AppPreferences @Inject constructor(
         const val DEFAULT_IC_RATIO = 15
         const val DEFAULT_MAX_DOSE = 6
 
-        /** Limites aceitos ao editar a faixa alvo (handoff §8). */
+        /** Accepted bounds when editing the target range (handoff §8). */
         const val RANGE_ABSOLUTE_MIN = 40
         const val RANGE_ABSOLUTE_MAX = 300
     }

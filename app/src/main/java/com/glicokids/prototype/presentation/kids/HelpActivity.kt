@@ -29,7 +29,7 @@ class HelpActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener { finish() }
 
         binding.wvHelp.apply {
-            webViewClient = WebViewClient() // nunca abrir navegador externo
+            webViewClient = WebViewClient() // never hand off to an external browser
             settings.javaScriptEnabled = true
         }
 
@@ -42,8 +42,8 @@ class HelpActivity : AppCompatActivity() {
     }
 
     /**
-     * Módulo 5 — requisito 6: sem conexão, o conteúdo vem de `res/raw/ajuda_offline.html`
-     * via `openRawResource` + `InputStreamReader`.
+     * Module 5 — requirement 6: with no connection the content comes from
+     * `res/raw/ajuda_offline.html` through `openRawResource` + `InputStreamReader`.
      */
     private fun showOfflineGuide() {
         binding.tvOfflineBanner.visibility = View.VISIBLE

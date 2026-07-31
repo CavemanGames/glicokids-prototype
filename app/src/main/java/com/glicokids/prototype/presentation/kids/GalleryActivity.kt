@@ -43,7 +43,7 @@ class GalleryActivity : AppCompatActivity() {
         loadMedals()
     }
 
-    /** Módulo 5 — requisito 7: as medalhas vêm da tabela `medals`, não de lista fixa. */
+    /** Module 5 — requirement 7: medals come from the `medals` table, not a fixed list. */
     private fun loadMedals() {
         lifecycleScope.launch {
             val records = withContext(Dispatchers.IO) { dbHelper.getMedals() }

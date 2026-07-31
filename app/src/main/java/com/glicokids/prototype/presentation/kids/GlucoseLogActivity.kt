@@ -34,7 +34,7 @@ class GlucoseLogActivity : AppCompatActivity() {
         updateDisplay()
     }
 
-    /** b16 · O banner do sensor só existe no modo Sensor; "Digitar" mostra o teclado. */
+    /** b16 · The sensor banner only exists in Sensor mode; "Digitar" shows the keypad. */
     private fun applyInputMode(sensor: Boolean) {
         binding.cvSensorBanner.visibility = if (sensor) View.VISIBLE else View.GONE
         binding.glKeypad.visibility = if (sensor) View.GONE else View.VISIBLE
@@ -73,7 +73,7 @@ class GlucoseLogActivity : AppCompatActivity() {
         }
     }
 
-    /** Módulo 5 — requisito 7: a leitura vai para a tabela `glucose_readings`. */
+    /** Module 5 — requirement 7: the reading goes into the `glucose_readings` table. */
     private fun saveReading() {
         val value = currentInput.toIntOrNull()
         if (value == null || value <= 0) {
@@ -104,7 +104,7 @@ class GlucoseLogActivity : AppCompatActivity() {
         binding.tvGlucoseValue.text = if (currentInput.isEmpty()) "- - -" else currentInput
 
         val value = currentInput.toIntOrNull() ?: prefs.targetGlucose
-        // A faixa vem das prefs: mudar o alvo na Área dos Pais recolore esta tela.
+        // The range comes from preferences: changing it in the Parent Area recolours this screen.
         val status = UIHelper.glucoseStatus(value, prefs.rangeMin, prefs.rangeMax)
 
         binding.tvStatusChip.text = when (status) {
@@ -112,7 +112,7 @@ class GlucoseLogActivity : AppCompatActivity() {
             UIHelper.GlucoseStatus.ATENCAO -> "Atenção! Glico em alerta"
             UIHelper.GlucoseStatus.FORA_DA_META -> "Fora da meta! Glico preocupado"
         }
-        // O chip inteiro segue o estado: texto na cor cheia, fundo na mesma cor com alpha.
+        // The whole chip follows the status: full-colour text, same colour with alpha as background.
         val color = UIHelper.getStatusColor(status)
         binding.tvStatusChip.setTextColor(color)
         binding.tvStatusChip.backgroundTintList =

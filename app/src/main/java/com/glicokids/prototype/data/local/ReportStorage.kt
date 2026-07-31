@@ -18,13 +18,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Módulo 5 — requisitos 3, 4 e 5: escrita com [FileOutputStream], leitura com
- * [FileInputStream] + [InputStreamReader] e cópia opcional para armazenamento externo.
+ * Module 5 — requirements 3, 4 and 5: writing with [FileOutputStream], reading with
+ * [FileInputStream] + [InputStreamReader], and an optional copy to external storage.
  *
- * O relatório é montado a partir do SQLite (últimos 7 dias) e NUNCA leva o nome
- * completo da criança: só primeiro nome + iniciais (dado de saúde, LGPD).
+ * The report is built from SQLite (last 7 days) and NEVER carries the child's full
+ * name: first name plus initials only (health data, LGPD).
  *
- * Tudo aqui toca disco: chame fora da main thread.
+ * Everything here touches disk: call it off the main thread.
  */
 @Singleton
 class ReportStorage @Inject constructor(
@@ -33,15 +33,15 @@ class ReportStorage @Inject constructor(
     private val prefs: AppPreferences
 ) {
 
-    /** Arquivo interno do relatório; existe só depois do primeiro "Exportar". */
+    /** Internal report file; it only exists after the first "Exportar". */
     private val internalFile: File
         get() = File(context.filesDir, REPORT_FILE_NAME)
 
     fun reportExists(): Boolean = internalFile.exists()
 
     /**
-     * Requisito 3 — gera o relatório dos últimos 7 dias e grava com [FileOutputStream].
-     * Devolve o conteúdo gravado.
+     * Requirement 3 — builds the last 7 days report and writes it with [FileOutputStream].
+     * Returns the content that was written.
      */
     fun generateAndSave(nowMillis: Long): String {
         val content = buildReport(nowMillis)
@@ -53,8 +53,8 @@ class ReportStorage @Inject constructor(
     }
 
     /**
-     * Requisito 4 — lê o relatório com [FileInputStream] + [InputStreamReader] +
-     * [BufferedReader]. Devolve null quando o arquivo ainda não existe.
+     * Requirement 4 — reads the report with [FileInputStream] + [InputStreamReader] +
+     * [BufferedReader]. Returns null when the file does not exist yet.
      */
     fun readReport(): String? {
         if (!internalFile.exists()) return null
@@ -64,12 +64,12 @@ class ReportStorage @Inject constructor(
     }
 
     /**
-     * Requisito 5 — cópia fora do sandbox do app. Função única e à prova de falha:
-     * nunca propaga exceção, devolve o caminho usado ou null.
+     * Requirement 5 — copy outside the app sandbox. Single, fail-safe function:
+     * never propagates an exception, returns the path used or null.
      *
-     * Até a API 28 usa [Environment.getExternalStorageDirectory] (o método exigido
-     * pelo módulo); da 29 em diante isso é bloqueado por scoped storage e caímos
-     * em `getExternalFilesDir`, que não pede permissão.
+     * Up to API 28 it uses [Environment.getExternalStorageDirectory] (the method the
+     * module requires); from 29 onwards scoped storage blocks that and we fall back
+     * to `getExternalFilesDir`, which needs no permission.
      */
     fun saveReportExternally(content: String): String? {
         return try {
@@ -86,14 +86,14 @@ class ReportStorage @Inject constructor(
             FileOutputStream(target).use { it.write(content.toByteArray(Charsets.UTF_8)) }
             target.absolutePath
         } catch (e: Exception) {
-            Log.w(TAG, "Falha ao salvar cópia externa do relatório", e)
+            Log.w(TAG, "Failed to save the external copy of the report", e)
             null
         }
     }
 
     // ------------------------------------------------------------------
 
-    /** Primeiro nome por extenso + iniciais dos demais ("Lucas Silva Souza" -> "Lucas S. S."). */
+    /** Full first name plus the initials of the rest ("Lucas Silva Souza" -> "Lucas S. S."). */
     internal fun anonymizedName(fullName: String): String {
         val parts = fullName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
         if (parts.isEmpty()) return "—"

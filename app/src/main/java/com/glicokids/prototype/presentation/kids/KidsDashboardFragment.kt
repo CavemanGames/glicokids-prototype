@@ -35,7 +35,7 @@ class KidsDashboardFragment : Fragment() {
         R.drawable.ic_avatar_4, R.drawable.ic_avatar_5
     )
 
-    /** PIN correto (b10) libera a Área dos Pais (b17) pelo nav_graph. */
+    /** A correct PIN (b10) unlocks the Parent Area (b17) through nav_graph. */
     private val parentAreaLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
@@ -59,7 +59,7 @@ class KidsDashboardFragment : Fragment() {
         setupAnimations()
 
         binding.btnParentArea.setOnClickListener {
-            // Requisito Módulo 2: Navegação via Intent com Passagem de Dados (Extras)
+            // Module 2 requirement: navigation via Intent carrying Extras
             val intent = Intent(requireContext(), ParentSecurityActivity::class.java).apply {
                 putExtra("CHILD_NAME", prefs.childName)
             }
@@ -67,7 +67,7 @@ class KidsDashboardFragment : Fragment() {
         }
 
         binding.btnNewMeal.setOnClickListener {
-            // Módulo 3: Abrindo Missão da Refeição via Intent
+            // Module 3: opening the Meal Mission via Intent
             val intent = Intent(requireContext(), NewMealActivity::class.java).apply {
                 putExtra("CHILD_NAME", prefs.childName)
             }
@@ -83,8 +83,8 @@ class KidsDashboardFragment : Fragment() {
         }
     }
 
-    // b8 · O popup arredondado vem do TEMA (popupMenuStyle + ThemeOverlay.GlicoKids.Popup),
-    // nunca de layout customizado. Itens sem ícone, em uma linha, definidos em res/menu/main_menu.xml.
+    // b8 · The rounded popup comes from the THEME (popupMenuStyle + ThemeOverlay.GlicoKids.Popup),
+    // never from a custom layout. Iconless single-line items, declared in res/menu/main_menu.xml.
     private fun setupMenu() {
         val popupContext = ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_GlicoKids_Popup)
 
@@ -127,8 +127,8 @@ class KidsDashboardFragment : Fragment() {
     }
 
     /**
-     * Módulo 5 — requisito 2: a home lê o que outras Activities gravaram nas
-     * mesmas SharedPreferences (avatar escolhido, XP, moedas, faixa alvo).
+     * Module 5 — requirement 2: the home reads what other Activities wrote into the
+     * same SharedPreferences (chosen avatar, XP, coins, target range).
      */
     override fun onResume() {
         super.onResume()
@@ -141,7 +141,7 @@ class KidsDashboardFragment : Fragment() {
     }
 
     private fun updateGlucoseDisplay() {
-        val currentGlucose = 112 // Leitura "ao vivo" continua simulada no protótipo
+        val currentGlucose = 112 // the "live" reading is still simulated in the prototype
         val status = UIHelper.glucoseStatus(currentGlucose, prefs.rangeMin, prefs.rangeMax)
         val color = UIHelper.getStatusColor(status)
 

@@ -2,7 +2,7 @@ package com.glicokids.prototype.data.model
 
 import com.glicokids.prototype.util.UIHelper
 
-/** Uma leitura de glicemia gravada na tabela `glucose_readings`. */
+/** A glucose reading stored in the `glucose_readings` table. */
 data class GlucoseReading(
     val id: Long = 0,
     val valueMgdl: Int,
@@ -13,7 +13,7 @@ data class GlucoseReading(
     enum class Source { MANUAL, SENSOR }
 }
 
-/** Uma refeição registrada na Missão da Refeição (tabela `meals`). */
+/** A meal logged through the Meal Mission (`meals` table). */
 data class MealEntry(
     val id: Long = 0,
     val label: String,
@@ -24,7 +24,7 @@ data class MealEntry(
     val createdAt: Long
 )
 
-/** Uma medalha da galeria (tabela `medals`). */
+/** A gallery medal (`medals` table). */
 data class MedalRecord(
     val id: Long = 0,
     val code: String,
@@ -34,7 +34,7 @@ data class MedalRecord(
     val unlockedAt: Long?
 )
 
-/** Um alimento da tabela de carboidratos (tabela `foods`, semeada de `raw/alimentos.json`). */
+/** A food from the carbohydrate table (`foods`, seeded from `raw/alimentos.json`). */
 data class Food(
     val id: Long = 0,
     val nome: String,

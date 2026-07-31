@@ -8,8 +8,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 /**
- * Módulo 5 — requisito 2: o avatar escolhido aqui é lido pela home, em outra
- * Activity, através da mesma [AppPreferences] (`getSharedPreferences`).
+ * Module 5 — requirement 2: the avatar picked here is read by the home screen,
+ * in another Activity, through the same [AppPreferences] (`getSharedPreferences`).
  */
 @HiltViewModel
 class AvatarViewModel @Inject constructor(

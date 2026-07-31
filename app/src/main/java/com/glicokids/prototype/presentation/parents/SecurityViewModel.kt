@@ -25,9 +25,9 @@ class SecurityViewModel @Inject constructor(
     private val maxAttempts = 3
 
     /**
-     * §8.1: `parent_pin` é o único dado sensível e mora no EncryptedSharedPreferences.
-     * No primeiro uso semeamos o PIN de teste do protótipo (1234); a partir daí a
-     * fonte da verdade é o storage — nunca uma constante no código.
+     * §8.1: `parent_pin` is the only sensitive value and lives in EncryptedSharedPreferences.
+     * On first run we seed the prototype test PIN (1234); from then on the storage is
+     * the source of truth — never a constant in the code.
      */
     private val correctPin: String
         get() = storageRepository.getString(KEY_PARENT_PIN, "").ifBlank {

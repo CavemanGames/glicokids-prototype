@@ -75,7 +75,7 @@ class AvatarActivity : AppCompatActivity(), ViewSwitcher.ViewFactory {
         }
     }
 
-    // b14 · Os dots são drawables da marca (bg_circle_teal / bg_dot_inactive), nunca cor chapada.
+    // b14 · The dots are brand drawables (bg_circle_teal / bg_dot_inactive), never a flat colour.
     private fun updateDots(currentIndex: Int) {
         val dots = listOf(
             binding.dotAvatar1, binding.dotAvatar2, binding.dotAvatar3,

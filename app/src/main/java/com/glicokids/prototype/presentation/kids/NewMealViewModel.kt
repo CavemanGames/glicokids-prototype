@@ -35,8 +35,8 @@ class NewMealViewModel @Inject constructor(
         val carbs = cleanCarbs.toDoubleOrNull() ?: 0.0
         val glucose = cleanGlucose.toIntOrNull() ?: 0
 
-        // Módulo 5: os parâmetros vêm da Área dos Pais (SharedPreferences),
-        // não mais de constantes — editar o FSI/I/C/alvo muda o cálculo de verdade.
+        // Module 5: the parameters come from the Parent Area (SharedPreferences),
+        // no longer from constants — editing ISF/IC/target genuinely changes the result.
         val result = calculateBolusUseCase.execute(
             carbs = carbs,
             currentGlucose = glucose,

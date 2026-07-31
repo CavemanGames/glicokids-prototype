@@ -27,7 +27,7 @@ object UIHelper {
         }
     }
 
-    /** Mesma cor do estado, com opacidade reduzida — para fundo de chip/barra. */
+    /** Same status colour with reduced opacity — for chip and bar backgrounds. */
     fun withAlpha(color: Int, alpha: Float): Int =
         android.graphics.Color.argb(
             (alpha.coerceIn(0f, 1f) * 255).toInt(),

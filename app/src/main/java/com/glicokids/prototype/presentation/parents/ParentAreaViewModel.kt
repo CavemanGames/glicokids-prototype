@@ -25,7 +25,7 @@ class ParentAreaViewModel @Inject constructor(
     private val reportStorage: ReportStorage
 ) : ViewModel() {
 
-    /** Parâmetros clínicos vindos das SharedPreferences (§8.1). */
+    /** Clinical parameters coming from SharedPreferences (§8.1). */
     data class ClinicalParams(
         val isf: Int,
         val icRatio: Int,
@@ -35,7 +35,7 @@ class ParentAreaViewModel @Inject constructor(
         val maxDose: Int
     )
 
-    /** Uma barra do gráfico de 7 dias: média do dia + estado pela faixa vigente. */
+    /** One bar of the 7-day chart: the daily average plus its status under the active range. */
     data class DayBar(
         val label: String,
         val average: Int,
@@ -52,7 +52,7 @@ class ParentAreaViewModel @Inject constructor(
     private val _weekBars = MutableLiveData<List<DayBar>>()
     val weekBars: LiveData<List<DayBar>> = _weekBars
 
-    /** Percentual de leituras na meta nos últimos 7 dias. */
+    /** Percentage of in-range readings over the last 7 days. */
     private val _timeInRange = MutableLiveData<Int>()
     val timeInRange: LiveData<Int> = _timeInRange
 
@@ -70,7 +70,7 @@ class ParentAreaViewModel @Inject constructor(
         _lastReportAt.value = prefs.lastReportAt
     }
 
-    /** Recarrega do SQLite fora da main thread (o I/O nunca roda na UI). */
+    /** Reloads from SQLite off the main thread (I/O never runs on the UI). */
     fun refresh(nowMillis: Long = System.currentTimeMillis()) {
         publishParams()
         _lastReportAt.value = prefs.lastReportAt
@@ -101,8 +101,8 @@ class ParentAreaViewModel @Inject constructor(
     }
 
     /**
-     * Agrupa as leituras em 7 baldes diários e classifica cada dia pela faixa
-     * vigente — a cor da barra sai de [UIHelper.glucoseStatus], nunca de limite fixo.
+     * Buckets the readings into 7 days and classifies each one under the active range —
+     * the bar colour comes from [UIHelper.glucoseStatus], never from a fixed threshold.
      */
     internal fun buildWeekBars(readings: List<Pair<Long, Int>>, nowMillis: Long): List<DayBar> {
         val dayFormat = SimpleDateFormat("EEE", Locale("pt", "BR"))
@@ -137,10 +137,10 @@ class ParentAreaViewModel @Inject constructor(
         }.timeInMillis
 
     // ------------------------------------------------------------------
-    // Edição de parâmetros (b18 — sempre por diálogo validado, nunca inline)
+    // Parameter editing (b18 — always through a validated dialog, never inline)
     // ------------------------------------------------------------------
 
-    /** Validação do handoff §8: 40 ≤ mín < máx ≤ 300. */
+    /** Validation from handoff §8: 40 ≤ min < max ≤ 300. */
     fun updateTargetRange(min: Int, max: Int): Boolean {
         if (min < AppPreferences.RANGE_ABSOLUTE_MIN ||
             max > AppPreferences.RANGE_ABSOLUTE_MAX ||
@@ -156,7 +156,7 @@ class ParentAreaViewModel @Inject constructor(
         return true
     }
 
-    /** Grava um parâmetro clínico simples; devolve false se estiver fora da faixa aceita. */
+    /** Stores a simple clinical parameter; returns false when it falls outside the accepted range. */
     fun updateParam(param: Param, value: Int): Boolean {
         if (value !in param.range) {
             _validationError.value = "Valor fora do intervalo aceito"
@@ -181,10 +181,10 @@ class ParentAreaViewModel @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // Relatório (Módulo 5 — requisitos 3, 4 e 5)
+    // Report (Module 5 — requirements 3, 4 and 5)
     // ------------------------------------------------------------------
 
-    /** Requisito 3 — gera e grava com FileOutputStream; devolve o conteúdo. */
+    /** Requirement 3 — builds and writes it with FileOutputStream; returns the content. */
     fun exportReport(nowMillis: Long = System.currentTimeMillis(), onDone: (String) -> Unit) {
         viewModelScope.launch {
             val content = withContext(Dispatchers.IO) { reportStorage.generateAndSave(nowMillis) }
@@ -193,14 +193,14 @@ class ParentAreaViewModel @Inject constructor(
         }
     }
 
-    /** Requisito 4 — lê com FileInputStream + InputStreamReader; null se não existir. */
+    /** Requirement 4 — reads it with FileInputStream + InputStreamReader; null if absent. */
     fun readReport(onDone: (String?) -> Unit) {
         viewModelScope.launch {
             onDone(withContext(Dispatchers.IO) { reportStorage.readReport() })
         }
     }
 
-    /** Requisito 5 — cópia fora do sandbox; devolve o caminho usado ou null. */
+    /** Requirement 5 — copy outside the sandbox; returns the path used or null. */
     fun exportReportExternally(nowMillis: Long = System.currentTimeMillis(), onDone: (String?) -> Unit) {
         viewModelScope.launch {
             val path = withContext(Dispatchers.IO) {

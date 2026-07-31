@@ -9,13 +9,13 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * As três camadas de persistência do handoff §8.1:
- *  - [EncryptedStorage] (EncryptedSharedPreferences) — só o `parent_pin`;
- *  - `AppPreferences` (SharedPreferences comum) — preferências e parâmetros clínicos;
- *  - `GlicoKidsDbHelper` (SQLiteOpenHelper) — séries históricas.
+ * The three persistence layers from handoff §8.1:
+ *  - [EncryptedStorage] (EncryptedSharedPreferences) — `parent_pin` only;
+ *  - `AppPreferences` (plain SharedPreferences) — settings and clinical parameters;
+ *  - `GlicoKidsDbHelper` (SQLiteOpenHelper) — historical series.
  *
- * As duas últimas são `@Singleton` com `@Inject constructor`, então o Hilt as
- * fornece sem precisar de `@Provides` aqui.
+ * The last two are `@Singleton` with an `@Inject constructor`, so Hilt provides
+ * them without needing `@Provides` here.
  */
 @Module
 @InstallIn(SingletonComponent::class)

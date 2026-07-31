@@ -17,12 +17,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Módulo 5 — requisito 7: banco local via [SQLiteOpenHelper] escrito à mão.
+ * Module 5 — requirement 7: local database through a hand-written [SQLiteOpenHelper].
  *
- * Room é PROIBIDO neste projeto (requisito acadêmico) e suas dependências
- * foram removidas do build. Schema conforme handoff §8.2.
+ * Room is FORBIDDEN in this project (academic requirement) and its dependencies
+ * were removed from the build. Schema follows handoff §8.2.
  *
- * Toda chamada aqui toca disco: use fora da main thread.
+ * Every call here touches disk: use it off the main thread.
  */
 @Singleton
 class GlicoKidsDbHelper @Inject constructor(
@@ -82,7 +82,7 @@ class GlicoKidsDbHelper @Inject constructor(
         seedMedals(db)
     }
 
-    /** Protótipo: recriar é aceitável, não há dado de produção a preservar. */
+    /** Prototype: recreating is acceptable, there is no production data to preserve. */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         listOf("glucose_readings", "meals", "medals", "foods").forEach {
             db.execSQL("DROP TABLE IF EXISTS $it")
@@ -91,12 +91,12 @@ class GlicoKidsDbHelper @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // Semeadura
+    // Seeding
     // ------------------------------------------------------------------
 
     /**
-     * Módulo 5 — requisito 6: `openRawResource` lendo `res/raw/alimentos.json`.
-     * Sem isso a tabela de carboidratos nasce vazia.
+     * Module 5 — requirement 6: `openRawResource` reading `res/raw/alimentos.json`.
+     * Without it the carbohydrate table starts empty.
      */
     private fun seedFoods(db: SQLiteDatabase) {
         val json = context.resources.openRawResource(R.raw.alimentos).use { input ->
@@ -117,7 +117,7 @@ class GlicoKidsDbHelper @Inject constructor(
         }
     }
 
-    /** As 6 medalhas do design (b12): 4 desbloqueadas, 2 bloqueadas. */
+    /** The 6 medals from the design (b12): 4 unlocked, 2 locked. */
     private fun seedMedals(db: SQLiteDatabase) {
         val seed = listOf(
             arrayOf("primeira_missao", "Primeira Missão", "OURO", 1),
@@ -141,7 +141,7 @@ class GlicoKidsDbHelper @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // Escrita
+    // Writes
     // ------------------------------------------------------------------
 
     fun insertGlucoseReading(reading: GlucoseReading): Long =
@@ -169,10 +169,10 @@ class GlicoKidsDbHelper @Inject constructor(
         )
 
     // ------------------------------------------------------------------
-    // Leitura
+    // Reads
     // ------------------------------------------------------------------
 
-    /** Leituras a partir de [sinceMillis], da mais antiga para a mais recente. */
+    /** Readings from [sinceMillis] onwards, oldest first. */
     fun getGlucoseReadingsSince(sinceMillis: Long): List<GlucoseReading> {
         val out = mutableListOf<GlucoseReading>()
         readableDatabase.rawQuery(

@@ -28,10 +28,10 @@ class NewMealActivity : AppCompatActivity() {
     private lateinit var binding: ActivityNewMealBinding
     private val viewModel: NewMealViewModel by viewModels()
 
-    /** true enquanto o valor no campo de carboidratos veio da câmera, não da digitação. */
+    /** true while the carbohydrate value came from the camera rather than typing. */
     private var carbsFromPhoto = false
 
-    /** Evita gravar a mesma refeição duas vezes se o estado for reemitido. */
+    /** Prevents storing the same meal twice if the state is re-emitted. */
     private var mealSaved = false
 
     @Inject lateinit var prefs: AppPreferences
@@ -53,7 +53,7 @@ class NewMealActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnBack.setOnClickListener { finish() }
 
-        // b9 · O chip "estimado pela foto" só aparece quando o valor veio da câmera.
+        // b9 · The "estimado pela foto" chip only shows when the value came from the camera.
         binding.tvCarbsSource.visibility = View.GONE
 
         binding.btnTakePhoto.setOnClickListener {
@@ -63,7 +63,7 @@ class NewMealActivity : AppCompatActivity() {
             binding.tvCarbsSource.visibility = View.VISIBLE
         }
 
-        // Digitar por cima da estimativa derruba o chip: o valor deixou de vir da foto.
+        // Typing over the estimate drops the chip: the value no longer comes from the photo.
         binding.etCarbohydrates.doAfterTextChanged {
             if (carbsFromPhoto) {
                 carbsFromPhoto = false
@@ -91,7 +91,7 @@ class NewMealActivity : AppCompatActivity() {
                 binding.tvCalculationResult.text =
                     String.format(Locale.getDefault(), "Dose sugerida: %.1f UI", state.insulinDose)
 
-                // A cor do resultado sai da faixa configurada na Área dos Pais.
+                // The result colour comes from the range configured in the Parent Area.
                 val glucoseValue = binding.etCurrentGlucose.text.toString().toIntOrNull()
                     ?: prefs.targetGlucose
                 val status = UIHelper.glucoseStatus(glucoseValue, prefs.rangeMin, prefs.rangeMax)
@@ -114,7 +114,7 @@ class NewMealActivity : AppCompatActivity() {
         }
     }
 
-    /** Módulo 5 — requisito 7: a refeição vai para a tabela `meals`. */
+    /** Module 5 — requirement 7: the meal goes into the `meals` table. */
     private fun saveMeal(dose: Double, glucose: Int) {
         if (mealSaved) return
         mealSaved = true
@@ -127,7 +127,7 @@ class NewMealActivity : AppCompatActivity() {
             carbsG = carbs,
             glucoseMgdl = glucose,
             bolusUi = dose,
-            photoPath = null, // câmera é simulada no protótipo
+            photoPath = null, // the camera is simulated in the prototype
             createdAt = System.currentTimeMillis()
         )
 
@@ -138,7 +138,7 @@ class NewMealActivity : AppCompatActivity() {
         }
     }
 
-    /** Café / Almoço / Lanche / Jantar pela hora do registro. */
+    /** Breakfast / lunch / snack / dinner, chosen by the time of day. */
     private fun mealLabelForNow(): String =
         when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
             in 5..10 -> "Café"
@@ -147,7 +147,7 @@ class NewMealActivity : AppCompatActivity() {
             else -> "Jantar"
         }
 
-    // Requisitos do Módulo 2: Logs de ciclo de vida
+    // Module 2 requirement: lifecycle logging
     override fun onStart() {
         super.onStart()
         Log.d(TAG, "NewMealActivity - onStart")

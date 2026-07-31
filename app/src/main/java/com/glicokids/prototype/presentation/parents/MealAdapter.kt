@@ -10,7 +10,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-/** b17 · "Últimas refeições" — dados vindos da tabela `meals` do SQLite. */
+/** b17 · "Últimas refeições" list — data comes from the SQLite `meals` table. */
 class MealAdapter : RecyclerView.Adapter<MealAdapter.MealViewHolder>() {
 
     private val items = mutableListOf<MealEntry>()
