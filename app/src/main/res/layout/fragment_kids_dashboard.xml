@@ -188,8 +188,10 @@
     <Button
         android:id="@+id/btnParentArea"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:background="@drawable/bg_glass_card"
-        android:text="🔒 Área dos Pais" android:textAllCaps="false"
+        android:background="@drawable/bg_glass_card" app:backgroundTint="@null"
+        android:text="Área dos Pais" android:textAllCaps="false"
+        app:icon="@drawable/ic_lock_small" app:iconGravity="textStart"
+        app:iconPadding="8dp" app:iconTint="@null"
         android:textColor="@color/text_muted_dark" android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

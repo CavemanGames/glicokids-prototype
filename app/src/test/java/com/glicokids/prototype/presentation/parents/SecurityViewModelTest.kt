@@ -1,7 +1,11 @@
 package com.glicokids.prototype.presentation.parents
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.glicokids.prototype.domain.repository.StorageRepository
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -11,11 +15,44 @@ class SecurityViewModelTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
+    private val storageRepository = mockk<StorageRepository>(relaxed = true)
     private lateinit var viewModel: SecurityViewModel
 
     @Before
     fun setup() {
-        viewModel = SecurityViewModel()
+        every { storageRepository.getString(SecurityViewModel.KEY_PARENT_PIN, "") } returns "1234"
+        viewModel = SecurityViewModel(storageRepository)
+    }
+
+    @Test
+    fun `PIN vem do storage criptografado, nunca de constante no codigo`() {
+        viewModel.validatePin("1234")
+
+        verify { storageRepository.getString(SecurityViewModel.KEY_PARENT_PIN, "") }
+        assertThat(viewModel.accessGranted.value).isTrue()
+    }
+
+    @Test
+    fun `sem PIN salvo, semeia o PIN de teste do prototipo e o grava`() {
+        every { storageRepository.getString(SecurityViewModel.KEY_PARENT_PIN, "") } returns ""
+        val vm = SecurityViewModel(storageRepository)
+
+        vm.validatePin("1234")
+
+        verify { storageRepository.saveString(SecurityViewModel.KEY_PARENT_PIN, "1234") }
+        assertThat(vm.accessGranted.value).isTrue()
+    }
+
+    @Test
+    fun `PIN alterado no storage passa a valer e o antigo deixa de abrir`() {
+        every { storageRepository.getString(SecurityViewModel.KEY_PARENT_PIN, "") } returns "9876"
+        val vm = SecurityViewModel(storageRepository)
+
+        vm.validatePin("1234")
+        assertThat(vm.accessGranted.value).isFalse()
+
+        vm.validatePin("9876")
+        assertThat(vm.accessGranted.value).isTrue()
     }
 
     @Test
