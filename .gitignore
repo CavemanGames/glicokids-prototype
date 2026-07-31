@@ -33,5 +33,5 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Agent Artifacts (Confidential thoughts and plans)
+# Artifacts (Confidential thoughts and plans)
 .artifacts/

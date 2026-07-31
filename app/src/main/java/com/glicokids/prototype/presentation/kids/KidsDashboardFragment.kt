@@ -28,7 +28,12 @@ class KidsDashboardFragment : Fragment() {
     private val binding get() = _binding!!
 
     @Inject
-    lateinit var storageRepository: com.glicokids.prototype.domain.repository.StorageRepository
+    lateinit var prefs: com.glicokids.prototype.data.local.AppPreferences
+
+    private val avatars = intArrayOf(
+        R.drawable.ic_avatar_1, R.drawable.ic_avatar_2, R.drawable.ic_avatar_3,
+        R.drawable.ic_avatar_4, R.drawable.ic_avatar_5
+    )
 
     /** PIN correto (b10) libera a Área dos Pais (b17) pelo nav_graph. */
     private val parentAreaLauncher =
@@ -52,12 +57,11 @@ class KidsDashboardFragment : Fragment() {
 
         setupMenu()
         setupAnimations()
-        updateGlucoseDisplay()
 
         binding.btnParentArea.setOnClickListener {
             // Requisito Módulo 2: Navegação via Intent com Passagem de Dados (Extras)
             val intent = Intent(requireContext(), ParentSecurityActivity::class.java).apply {
-                putExtra("CHILD_NAME", "Lucas")
+                putExtra("CHILD_NAME", prefs.childName)
             }
             parentAreaLauncher.launch(intent)
         }
@@ -65,7 +69,7 @@ class KidsDashboardFragment : Fragment() {
         binding.btnNewMeal.setOnClickListener {
             // Módulo 3: Abrindo Missão da Refeição via Intent
             val intent = Intent(requireContext(), NewMealActivity::class.java).apply {
-                putExtra("CHILD_NAME", "Lucas")
+                putExtra("CHILD_NAME", prefs.childName)
             }
             startActivity(intent)
         }
@@ -122,12 +126,23 @@ class KidsDashboardFragment : Fragment() {
         }
     }
 
-    private fun updateGlucoseDisplay() {
-        val currentGlucose = 112 // Mocked for Dashboard
-        val min = storageRepository.getInt("range_min", 70)
-        val max = storageRepository.getInt("range_max", 180)
+    /**
+     * Módulo 5 — requisito 2: a home lê o que outras Activities gravaram nas
+     * mesmas SharedPreferences (avatar escolhido, XP, moedas, faixa alvo).
+     */
+    override fun onResume() {
+        super.onResume()
+        binding.ivAvatar.setImageResource(avatars[prefs.avatarIndex.coerceIn(avatars.indices)])
+        binding.tvWelcome.text = "Oi, ${prefs.childName}!"
+        binding.tvCoins.text = prefs.coins.toString()
+        binding.pbXp.progress = prefs.xp % 100
+        binding.tvLevel.text = "Nv ${prefs.xp / 100 + 1}"
+        updateGlucoseDisplay()
+    }
 
-        val status = UIHelper.glucoseStatus(currentGlucose, min, max)
+    private fun updateGlucoseDisplay() {
+        val currentGlucose = 112 // Leitura "ao vivo" continua simulada no protótipo
+        val status = UIHelper.glucoseStatus(currentGlucose, prefs.rangeMin, prefs.rangeMax)
         val color = UIHelper.getStatusColor(status)
 
         binding.cardGlucose.strokeColor = color

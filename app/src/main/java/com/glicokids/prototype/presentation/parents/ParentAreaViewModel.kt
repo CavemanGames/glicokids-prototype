@@ -3,40 +3,217 @@ package com.glicokids.prototype.presentation.parents
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.glicokids.prototype.domain.repository.StorageRepository
+import androidx.lifecycle.viewModelScope
+import com.glicokids.prototype.data.local.AppPreferences
+import com.glicokids.prototype.data.local.GlicoKidsDbHelper
+import com.glicokids.prototype.data.local.ReportStorage
+import com.glicokids.prototype.data.model.MealEntry
+import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class ParentAreaViewModel @Inject constructor(
-    private val storageRepository: StorageRepository
+    private val prefs: AppPreferences,
+    private val dbHelper: GlicoKidsDbHelper,
+    private val reportStorage: ReportStorage
 ) : ViewModel() {
+
+    /** Parâmetros clínicos vindos das SharedPreferences (§8.1). */
+    data class ClinicalParams(
+        val isf: Int,
+        val icRatio: Int,
+        val targetGlucose: Int,
+        val rangeMin: Int,
+        val rangeMax: Int,
+        val maxDose: Int
+    )
+
+    /** Uma barra do gráfico de 7 dias: média do dia + estado pela faixa vigente. */
+    data class DayBar(
+        val label: String,
+        val average: Int,
+        val status: UIHelper.GlucoseStatus,
+        val hasData: Boolean
+    )
+
+    private val _params = MutableLiveData<ClinicalParams>()
+    val params: LiveData<ClinicalParams> = _params
 
     private val _targetRange = MutableLiveData<Pair<Int, Int>>()
     val targetRange: LiveData<Pair<Int, Int>> = _targetRange
+
+    private val _weekBars = MutableLiveData<List<DayBar>>()
+    val weekBars: LiveData<List<DayBar>> = _weekBars
+
+    /** Percentual de leituras na meta nos últimos 7 dias. */
+    private val _timeInRange = MutableLiveData<Int>()
+    val timeInRange: LiveData<Int> = _timeInRange
+
+    private val _meals = MutableLiveData<List<MealEntry>>()
+    val meals: LiveData<List<MealEntry>> = _meals
+
+    private val _lastReportAt = MutableLiveData<Long>()
+    val lastReportAt: LiveData<Long> = _lastReportAt
 
     private val _validationError = MutableLiveData<String?>(null)
     val validationError: LiveData<String?> = _validationError
 
     init {
-        loadRange()
+        publishParams()
+        _lastReportAt.value = prefs.lastReportAt
     }
 
-    private fun loadRange() {
-        val min = storageRepository.getInt("range_min", 70)
-        val max = storageRepository.getInt("range_max", 180)
-        _targetRange.value = Pair(min, max)
+    /** Recarrega do SQLite fora da main thread (o I/O nunca roda na UI). */
+    fun refresh(nowMillis: Long = System.currentTimeMillis()) {
+        publishParams()
+        _lastReportAt.value = prefs.lastReportAt
+
+        viewModelScope.launch {
+            val since = nowMillis - ReportStorage.SEVEN_DAYS_MILLIS
+            val readings = withContext(Dispatchers.IO) { dbHelper.getGlucoseReadingsSince(since) }
+            val recentMeals = withContext(Dispatchers.IO) { dbHelper.getRecentMeals(RECENT_MEALS_LIMIT) }
+
+            _weekBars.value = buildWeekBars(readings.map { it.createdAt to it.valueMgdl }, nowMillis)
+            _timeInRange.value = if (readings.isEmpty()) 0 else {
+                readings.count { it.status == UIHelper.GlucoseStatus.NA_META } * 100 / readings.size
+            }
+            _meals.value = recentMeals
+        }
     }
 
+    private fun publishParams() {
+        _params.value = ClinicalParams(
+            isf = prefs.isf,
+            icRatio = prefs.icRatio,
+            targetGlucose = prefs.targetGlucose,
+            rangeMin = prefs.rangeMin,
+            rangeMax = prefs.rangeMax,
+            maxDose = prefs.maxDose
+        )
+        _targetRange.value = prefs.rangeMin to prefs.rangeMax
+    }
+
+    /**
+     * Agrupa as leituras em 7 baldes diários e classifica cada dia pela faixa
+     * vigente — a cor da barra sai de [UIHelper.glucoseStatus], nunca de limite fixo.
+     */
+    internal fun buildWeekBars(readings: List<Pair<Long, Int>>, nowMillis: Long): List<DayBar> {
+        val dayFormat = SimpleDateFormat("EEE", Locale("pt", "BR"))
+        val cal = Calendar.getInstance()
+        val min = prefs.rangeMin
+        val max = prefs.rangeMax
+
+        return (6 downTo 0).map { daysAgo ->
+            val dayStart = startOfDay(nowMillis - daysAgo * DAY_MILLIS)
+            val dayEnd = dayStart + DAY_MILLIS
+            val ofDay = readings.filter { it.first in dayStart until dayEnd }.map { it.second }
+
+            cal.timeInMillis = dayStart
+            val label = dayFormat.format(cal.time).take(3).replaceFirstChar { it.uppercase() }
+
+            if (ofDay.isEmpty()) {
+                DayBar(label, 0, UIHelper.GlucoseStatus.NA_META, hasData = false)
+            } else {
+                val average = ofDay.average().toInt()
+                DayBar(label, average, UIHelper.glucoseStatus(average, min, max), hasData = true)
+            }
+        }
+    }
+
+    private fun startOfDay(millis: Long): Long =
+        Calendar.getInstance().apply {
+            timeInMillis = millis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    // ------------------------------------------------------------------
+    // Edição de parâmetros (b18 — sempre por diálogo validado, nunca inline)
+    // ------------------------------------------------------------------
+
+    /** Validação do handoff §8: 40 ≤ mín < máx ≤ 300. */
     fun updateTargetRange(min: Int, max: Int): Boolean {
-        // Ajuste 3: Validação 40 <= min < max <= 300
-        if (min < 40 || max > 300 || min >= max) {
+        if (min < AppPreferences.RANGE_ABSOLUTE_MIN ||
+            max > AppPreferences.RANGE_ABSOLUTE_MAX ||
+            min >= max
+        ) {
+            _validationError.value = "Faixa inválida"
             return false
         }
 
-        storageRepository.saveInt("range_min", min)
-        storageRepository.saveInt("range_max", max)
-        _targetRange.value = Pair(min, max)
+        prefs.saveTargetRange(min, max)
+        _validationError.value = null
+        publishParams()
         return true
+    }
+
+    /** Grava um parâmetro clínico simples; devolve false se estiver fora da faixa aceita. */
+    fun updateParam(param: Param, value: Int): Boolean {
+        if (value !in param.range) {
+            _validationError.value = "Valor fora do intervalo aceito"
+            return false
+        }
+        when (param) {
+            Param.ISF -> prefs.isf = value
+            Param.IC_RATIO -> prefs.icRatio = value
+            Param.TARGET -> prefs.targetGlucose = value
+            Param.MAX_DOSE -> prefs.maxDose = value
+        }
+        _validationError.value = null
+        publishParams()
+        return true
+    }
+
+    enum class Param(val range: IntRange) {
+        ISF(1..500),
+        IC_RATIO(1..100),
+        TARGET(70..150),
+        MAX_DOSE(1..50)
+    }
+
+    // ------------------------------------------------------------------
+    // Relatório (Módulo 5 — requisitos 3, 4 e 5)
+    // ------------------------------------------------------------------
+
+    /** Requisito 3 — gera e grava com FileOutputStream; devolve o conteúdo. */
+    fun exportReport(nowMillis: Long = System.currentTimeMillis(), onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            val content = withContext(Dispatchers.IO) { reportStorage.generateAndSave(nowMillis) }
+            _lastReportAt.value = prefs.lastReportAt
+            onDone(content)
+        }
+    }
+
+    /** Requisito 4 — lê com FileInputStream + InputStreamReader; null se não existir. */
+    fun readReport(onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            onDone(withContext(Dispatchers.IO) { reportStorage.readReport() })
+        }
+    }
+
+    /** Requisito 5 — cópia fora do sandbox; devolve o caminho usado ou null. */
+    fun exportReportExternally(nowMillis: Long = System.currentTimeMillis(), onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            val path = withContext(Dispatchers.IO) {
+                val content = reportStorage.readReport() ?: reportStorage.generateAndSave(nowMillis)
+                reportStorage.saveReportExternally(content)
+            }
+            _lastReportAt.value = prefs.lastReportAt
+            onDone(path)
+        }
+    }
+
+    companion object {
+        private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+        const val RECENT_MEALS_LIMIT = 5
     }
 }

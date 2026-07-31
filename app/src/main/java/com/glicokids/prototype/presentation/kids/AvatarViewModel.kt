@@ -3,13 +3,17 @@ package com.glicokids.prototype.presentation.kids
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.glicokids.prototype.domain.repository.StorageRepository
+import com.glicokids.prototype.data.local.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+/**
+ * Módulo 5 — requisito 2: o avatar escolhido aqui é lido pela home, em outra
+ * Activity, através da mesma [AppPreferences] (`getSharedPreferences`).
+ */
 @HiltViewModel
 class AvatarViewModel @Inject constructor(
-    private val storageRepository: StorageRepository
+    private val prefs: AppPreferences
 ) : ViewModel() {
 
     private val _currentIndex = MutableLiveData<Int>()
@@ -18,7 +22,7 @@ class AvatarViewModel @Inject constructor(
     private val avatarCount = 5
 
     init {
-        _currentIndex.value = storageRepository.getInt("selected_avatar", 0)
+        _currentIndex.value = prefs.avatarIndex
     }
 
     fun nextAvatar() {
@@ -32,6 +36,6 @@ class AvatarViewModel @Inject constructor(
     }
 
     fun selectAvatar(index: Int) {
-        storageRepository.saveInt("selected_avatar", index)
+        prefs.avatarIndex = index
     }
 }

@@ -27,6 +27,15 @@ object UIHelper {
         }
     }
 
+    /** Mesma cor do estado, com opacidade reduzida — para fundo de chip/barra. */
+    fun withAlpha(color: Int, alpha: Float): Int =
+        android.graphics.Color.argb(
+            (alpha.coerceIn(0f, 1f) * 255).toInt(),
+            android.graphics.Color.red(color),
+            android.graphics.Color.green(color),
+            android.graphics.Color.blue(color)
+        )
+
     fun getStatusColor(status: GlucoseStatus): Int {
         return when (status) {
             GlucoseStatus.NA_META -> android.graphics.Color.parseColor("#00E5B0") // Teal

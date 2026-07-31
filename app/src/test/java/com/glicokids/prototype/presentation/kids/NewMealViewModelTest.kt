@@ -1,12 +1,14 @@
 package com.glicokids.prototype.presentation.kids
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.domain.model.BolusResult
 import com.glicokids.prototype.domain.model.Result
 import com.glicokids.prototype.domain.usecase.CalculateBolusUseCase
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -17,11 +19,30 @@ class NewMealViewModelTest {
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     private val calculateBolusUseCase = mockk<CalculateBolusUseCase>()
+    private val prefs = mockk<AppPreferences>(relaxed = true)
     private lateinit var viewModel: NewMealViewModel
 
     @Before
     fun setup() {
-        viewModel = NewMealViewModel(calculateBolusUseCase)
+        every { prefs.targetGlucose } returns 100
+        every { prefs.isf } returns 50
+        every { prefs.icRatio } returns 15
+        viewModel = NewMealViewModel(calculateBolusUseCase, prefs)
+    }
+
+    @Test
+    fun `usa os parametros clinicos das prefs, nao constantes do codigo`() {
+        every { prefs.targetGlucose } returns 120
+        every { prefs.isf } returns 40
+        every { prefs.icRatio } returns 12
+        every { calculateBolusUseCase.execute(45.0, 200, 120, 40, 12) } returns
+            Result.Success(BolusResult(5.0, "ok"))
+        val vm = NewMealViewModel(calculateBolusUseCase, prefs)
+
+        vm.calculate("45", "200")
+
+        verify { calculateBolusUseCase.execute(45.0, 200, 120, 40, 12) }
+        assertThat(vm.uiState.value?.insulinDose).isEqualTo(5.0)
     }
 
     @Test

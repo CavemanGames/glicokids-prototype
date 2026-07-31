@@ -39,6 +39,13 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    testOptions {
+        unitTests {
+            // Sem isto o Robolectric não enxerga res/raw e a semeadura do SQLite
+            // (openRawResource de alimentos.json) falha nos testes de unidade.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -74,7 +81,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.5")
     testImplementation("com.google.truth:truth:1.4.5")
-    testImplementation("org.robolectric:robolectric:4.10.3")
+    // 4.10.3 só suportava até o SDK 33; com targetSdk 34 ele nem inicializa os testes.
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core-ktx:1.5.0")
     testImplementation("androidx.test.ext:junit-ktx:1.1.5")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
