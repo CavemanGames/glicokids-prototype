@@ -75,14 +75,16 @@ class AvatarActivity : AppCompatActivity(), ViewSwitcher.ViewFactory {
         }
     }
 
+    // b14 · The dots are brand drawables (bg_circle_teal / bg_dot_inactive), never a flat colour.
     private fun updateDots(currentIndex: Int) {
-        for (i in 0 until binding.llDots.childCount) {
-            val dot = binding.llDots.getChildAt(i)
-            if (i == currentIndex) {
-                dot.setBackgroundResource(R.drawable.bg_circle_teal)
-            } else {
-                dot.setBackgroundColor(android.graphics.Color.parseColor("#D9CFF3"))
-            }
+        val dots = listOf(
+            binding.dotAvatar1, binding.dotAvatar2, binding.dotAvatar3,
+            binding.dotAvatar4, binding.dotAvatar5
+        )
+        dots.forEachIndexed { i, dot ->
+            dot.setBackgroundResource(
+                if (i == currentIndex) R.drawable.bg_circle_teal else R.drawable.bg_dot_inactive
+            )
         }
     }
 

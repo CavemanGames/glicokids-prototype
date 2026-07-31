@@ -74,6 +74,9 @@ class ParentSecurityActivity : AppCompatActivity() {
         viewModel.accessGranted.observe(this) { granted ->
             if (granted) {
                 Toast.makeText(this, "Acesso Concedido!", Toast.LENGTH_SHORT).show()
+                // Whoever opened the lock decides where to go: we return a result
+                // instead of just closing (before this the Parent Area was unreachable).
+                setResult(RESULT_OK)
                 finish()
             } else if (currentPin.length == 4) {
                 // Auto-clear on wrong PIN

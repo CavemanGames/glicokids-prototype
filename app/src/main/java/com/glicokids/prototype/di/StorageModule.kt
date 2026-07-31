@@ -1,16 +1,22 @@
 package com.glicokids.prototype.di
 
-import android.content.Context
 import com.glicokids.prototype.data.local.EncryptedStorage
 import com.glicokids.prototype.domain.repository.StorageRepository
 import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * The three persistence layers from handoff §8.1:
+ *  - [EncryptedStorage] (EncryptedSharedPreferences) — `parent_pin` only;
+ *  - `AppPreferences` (plain SharedPreferences) — settings and clinical parameters;
+ *  - `GlicoKidsDbHelper` (SQLiteOpenHelper) — historical series.
+ *
+ * The last two are `@Singleton` with an `@Inject constructor`, so Hilt provides
+ * them without needing `@Provides` here.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class StorageModule {

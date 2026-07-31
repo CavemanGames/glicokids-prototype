@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("androidx.navigation.safeargs.kotlin")
 }
@@ -39,6 +39,13 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    testOptions {
+        unitTests {
+            // Sem isto o Robolectric não enxerga res/raw e a semeadura do SQLite
+            // (openRawResource de alimentos.json) falha nos testes de unidade.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -56,15 +63,12 @@ dependencies {
     // --- Security ---
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // --- Room ---
-    val roomVersion = "2.5.2"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    // --- Persistência (Módulo 5): SQLiteOpenHelper escrito à mão + SharedPreferences.
+    //     Room é PROIBIDO neste projeto (requisito acadêmico) — nenhuma dependência dele aqui. ---
 
     // --- Hilt ---
-    implementation("com.google.dagger:hilt-android:2.48.1")
-    kapt("com.google.dagger:hilt-android-compiler:2.48.1")
+    implementation("com.google.dagger:hilt-android:2.59.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.59.2")
 
     // --- CameraX ---
     val cameraxVersion = "1.3.0"
@@ -77,19 +81,15 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.5")
     testImplementation("com.google.truth:truth:1.4.5")
-    testImplementation("org.robolectric:robolectric:4.10.3")
+    // 4.10.3 só suportava até o SDK 33; com targetSdk 34 ele nem inicializa os testes.
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.test:core-ktx:1.5.0")
     testImplementation("androidx.test.ext:junit-ktx:1.1.5")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
-    testImplementation("com.google.dagger:hilt-android-testing:2.48.1")
-    kaptTest("com.google.dagger:hilt-android-compiler:2.48.1")
+    testImplementation("com.google.dagger:hilt-android-testing:2.59.2")
+    kspTest("com.google.dagger:hilt-android-compiler:2.59.2")
     
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("com.google.truth:truth:1.4.5")
-}
-
-// Allow references to generated code
-kapt {
-    correctErrorTypes = true
 }

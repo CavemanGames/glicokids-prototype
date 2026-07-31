@@ -151,14 +151,65 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <Button
-            android:id="@+id/btnEditParams"
-            android:layout_width="match_parent" android:layout_height="56dp"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/bg_button_primary_3d" app:backgroundTint="@null"
-            android:text="Editar parâmetros" android:textAllCaps="false"
-            android:textColor="@android:color/white" android:textSize="14sp" android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/cvMeals"
-            app:layout_constraintBottom_toBottomOf="parent"/>
+        <!-- b17 · Módulo 5: relatório gerado por FileOutputStream e lido por FileInputStream -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvReport"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:clickable="true" android:focusable="true"
+            app:cardCornerRadius="18dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:strokeWidth="1dp" app:strokeColor="#E3DAF7"
+            app:layout_constraintTop_toBottomOf="@id/cvMeals">
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:paddingHorizontal="16dp" android:paddingVertical="12dp">
+                <LinearLayout
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="RELATÓRIO" android:letterSpacing="0.05"
+                        android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvLastReport"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Nenhum relatório gerado ainda"
+                        android:textColor="@color/ink" android:textSize="12sp" android:textStyle="bold"/>
+                </LinearLayout>
+                <TextView
+                    android:id="@+id/btnViewReport"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:background="@drawable/bg_chip_purple_soft"
+                    android:paddingHorizontal="12dp" android:paddingVertical="6dp"
+                    android:text="Ver ›" android:textColor="@color/primary_dark" android:textSize="12sp" android:textStyle="bold"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:id="@+id/llReportActions"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/cvReport"
+            app:layout_constraintBottom_toBottomOf="parent">
+            <Button
+                android:id="@+id/btnExportReport"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="56dp"
+                android:layout_marginEnd="6dp"
+                android:insetTop="0dp" android:insetBottom="0dp"
+                android:background="@drawable/bg_button_primary_3d" app:backgroundTint="@null"
+                android:text="Exportar relatório" android:textAllCaps="false"
+                android:textColor="@android:color/white" android:textSize="13sp" android:textStyle="bold"/>
+            <Button
+                android:id="@+id/btnExportExternal"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="56dp"
+                android:layout_marginStart="6dp"
+                android:text="Salvar cópia ↗" android:textAllCaps="false"
+                android:textColor="@color/primary_dark" android:textSize="13sp" android:textStyle="bold"
+                app:strokeColor="@color/primary_dark"/>
+        </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

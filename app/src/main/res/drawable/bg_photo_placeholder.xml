@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- b9 · Placeholder "sem foto ainda": hachura 45° + borda tracejada 3dp #B39DDB, raio 20dp.
+     Valores do design doc b9. Sai de cena assim que ivMealPhoto recebe uma foto. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/bg_photo_hatch" />
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <stroke android:width="3dp" android:color="#B39DDB"
+                android:dashWidth="9dp" android:dashGap="6dp" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+</layer-list>

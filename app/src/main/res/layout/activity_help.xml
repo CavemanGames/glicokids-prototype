@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- b15 · Central de Ajuda (WebView). SUBSTITUI o do staging: acrescenta a faixa offline do Módulo 5.
+     Sem internet: tvOfflineBanner visible + WebView carrega res/raw/ajuda_offline.html via openRawResource(). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/lavender_bg">
 
-    <!-- Header Section -->
     <ImageButton
         android:id="@+id/btnBack"
         android:layout_width="40dp"
@@ -15,7 +15,7 @@
         android:layout_marginTop="16dp"
         android:background="@drawable/bg_circle_white"
         android:src="@drawable/ic_back_ink"
-        android:contentDescription="Back"
+        android:contentDescription="Voltar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -43,7 +43,6 @@
             android:text="diabetes.org.br · conteúdo para adultos"
             android:textColor="@color/text_muted_light"
             android:textSize="10.5sp" />
-
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
@@ -60,7 +59,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- Fake URL Bar -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cvUrlBar"
                 android:layout_width="match_parent"
@@ -71,6 +69,7 @@
                 app:cardElevation="0dp"
                 app:layout_constraintTop_toTopOf="parent">
                 <TextView
+                    android:id="@+id/tvUrl"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
@@ -80,15 +79,27 @@
                     android:layout_gravity="center_horizontal" />
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Faixa offline: visibility=gone por padrão; o código mostra quando não há conexão -->
+            <TextView
+                android:id="@+id/tvOfflineBanner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FFF6E3"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="9dp"
+                android:text="⚠  Sem internet — exibindo o guia salvo no app"
+                android:textColor="#8A6D00"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/cvUrlBar" />
+
             <WebView
                 android:id="@+id/wvHelp"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                app:layout_constraintTop_toBottomOf="@id/cvUrlBar"
+                app:layout_constraintTop_toBottomOf="@id/tvOfflineBanner"
                 app:layout_constraintBottom_toBottomOf="parent" />
-
         </androidx.constraintlayout.widget.ConstraintLayout>
-
     </com.google.android.material.card.MaterialCardView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

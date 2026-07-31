@@ -7,16 +7,26 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.glicokids.prototype.R
+import com.glicokids.prototype.data.local.AppPreferences
+import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.databinding.ActivityGalleryBinding
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class GalleryActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityGalleryBinding
-    private lateinit var medals: List<Medal>
+    private var medals: List<Medal> = emptyList()
+
+    @Inject lateinit var dbHelper: GlicoKidsDbHelper
+    @Inject lateinit var prefs: AppPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,39 +36,59 @@ class GalleryActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener { finish() }
         binding.btnShare.setOnClickListener { shareStreak() }
 
-        // Mock streak data
-        binding.tvStreakCount.text = "5"
+        binding.tvStreakCount.text = prefs.streak.toString()
+        binding.tvStreakLabel.text =
+            "dias seguidos com a glicose na meta · ${prefs.childName} está mandando bem"
 
         loadMedals()
-        binding.gvMedals.adapter = MedalAdapter(this, medals)
-        registerForContextMenu(binding.gvMedals)
     }
 
+    /** Module 5 — requirement 7: medals come from the `medals` table, not a fixed list. */
     private fun loadMedals() {
-        medals = listOf(
-            Medal(1, "Primeira Missão", "Você completou sua primeira missão!", "OURO", R.drawable.ic_medal_gold),
-            Medal(2, "Semana na Meta", "Sete dias seguidos no alvo!", "ESMERALDA", R.drawable.ic_medal_teal),
-            Medal(3, "Corredor Cósmico", "Atividade física registrada hoje.", "DIAMANTE", R.drawable.ic_medal_purple),
-            Medal(4, "10 Fotos de Prato", "Mestre da IA de alimentos.", "OURO", R.drawable.ic_medal_gold),
-            Medal(5, "Maratonista", "Bloqueada: Complete 20 missões.", "ESMERALDA", R.drawable.ic_medal_teal, true),
-            Medal(6, "Mês Perfeito", "Bloqueada: 30 dias no alvo.", "DIAMANTE", R.drawable.ic_medal_purple, true)
-        )
+        lifecycleScope.launch {
+            val records = withContext(Dispatchers.IO) { dbHelper.getMedals() }
+            medals = records.map { record ->
+                Medal(
+                    id = record.id.toInt(),
+                    name = record.name,
+                    description = describe(record.name, record.unlocked),
+                    rarity = record.rarity,
+                    drawableRes = drawableForRarity(record.rarity),
+                    isLocked = !record.unlocked
+                )
+            }
+            binding.gvMedals.adapter = MedalAdapter(this@GalleryActivity, medals)
+            registerForContextMenu(binding.gvMedals)
+        }
     }
 
-    override fun onCreateContextMenu(menu: ContextMenu?, v: View?, menuInfo: ContextMenu.ContextMenuInfo?) {
+    private fun drawableForRarity(rarity: String): Int = when (rarity) {
+        "OURO" -> R.drawable.ic_medal_gold
+        "ESMERALDA" -> R.drawable.ic_medal_teal
+        else -> R.drawable.ic_medal_purple
+    }
+
+    private fun describe(name: String, unlocked: Boolean): String =
+        if (unlocked) "Conquistada: $name" else "Bloqueada: continue nas missões para liberar."
+
+    override fun onCreateContextMenu(
+        menu: ContextMenu?,
+        v: View?,
+        menuInfo: ContextMenu.ContextMenuInfo?
+    ) {
         super.onCreateContextMenu(menu, v, menuInfo)
-        val info = menuInfo as AdapterView.AdapterContextMenuInfo
-        val medal = medals[info.position]
-        
-        // Ajuste 2: Header com Nome e Raridade
+        val info = menuInfo as? AdapterView.AdapterContextMenuInfo ?: return
+        val medal = medals.getOrNull(info.position) ?: return
+
         menu?.setHeaderTitle("${medal.name} · ${medal.rarity}")
         menu?.add(0, 1, 0, "Ver Detalhes")
         menu?.add(0, 2, 1, "Compartilhar")
     }
 
     override fun onContextItemSelected(item: MenuItem): Boolean {
-        val info = item.menuInfo as AdapterView.AdapterContextMenuInfo
-        val medal = medals[info.position]
+        val info = item.menuInfo as? AdapterView.AdapterContextMenuInfo
+            ?: return super.onContextItemSelected(item)
+        val medal = medals.getOrNull(info.position) ?: return super.onContextItemSelected(item)
 
         return when (item.itemId) {
             1 -> {
@@ -74,22 +104,19 @@ class GalleryActivity : AppCompatActivity() {
     }
 
     private fun shareMedal(medal: Medal) {
-        val sendIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Ganhei a medalha ${medal.name} no GlicoKids! 🚀")
-            type = "text/plain"
-        }
-        val shareIntent = Intent.createChooser(sendIntent, null)
-        startActivity(shareIntent)
+        share("Ganhei a medalha ${medal.name} no GlicoKids!")
     }
 
     private fun shareStreak() {
+        share("Estou há ${prefs.streak} dias na meta no GlicoKids!")
+    }
+
+    private fun share(text: String) {
         val sendIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Estou há 5 dias na meta no GlicoKids! 🚀 Recorde de 9 dias.")
+            putExtra(Intent.EXTRA_TEXT, text)
             type = "text/plain"
         }
-        val shareIntent = Intent.createChooser(sendIntent, null)
-        startActivity(shareIntent)
+        startActivity(Intent.createChooser(sendIntent, null))
     }
 }

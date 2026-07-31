@@ -4,5 +4,11 @@
         <item name="colorSecondary">@color/gold</item>
         <item name="android:statusBarColor">@color/night_deep</item>
         <item name="android:windowBackground">@color/night</item>
+
+        <!-- b8 · O popup arredondado do menu ⋮ vem DAQUI, nunca de layout customizado.
+             Sem estes 3 itens o menu volta a ser um bloco branco de cantos retos. -->
+        <item name="popupMenuStyle">@style/Widget.GlicoKids.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.GlicoKids.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.GlicoKids.PopupMenu</item>
     </style>
 </resources>

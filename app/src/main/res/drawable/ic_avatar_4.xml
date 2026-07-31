@@ -1,17 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glico (Cometa rosa): corpo em gradiente + capacete de vidro + reflexo + bochechas. Fiel ao mascote do design doc. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="200dp"
-    android:height="200dp"
-    android:viewportWidth="200"
-    android:viewportHeight="200">
-    <path
-        android:fillColor="#FF8FB8"
-        android:pathData="M100,100m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M75,85m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0 M125,85m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:pathData="M80,120 Q100,140 120,120" />
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+
+    <!-- capacete (aro de vidro) -->
+    <path android:pathData="M6,58a48,48 0 1,0 96,0a48,48 0 1,0 -96,0"
+        android:fillColor="#14FFFFFF"
+        android:strokeColor="#8CFFFFFF" android:strokeWidth="3"/>
+
+    <!-- corpo -->
+    <path android:pathData="M14,58a40,40 0 1,0 80,0a40,40 0 1,0 -80,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="40" android:centerY="40" android:gradientRadius="62">
+                <item android:offset="0" android:color="#FFC2D8"/>
+                <item android:offset="0.55" android:color="#FF8FB8"/>
+                <item android:offset="1" android:color="#D14A82"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- reflexo -->
+    <path android:pathData="M26,38a14,7 0 1,0 28,0a14,7 0 1,0 -28,0" android:fillColor="#8CFFFFFF"/>
+
+    <!-- bochechas -->
+    <path android:pathData="M28,66a6,4 0 1,0 12,0a6,4 0 1,0 -12,0" android:fillColor="#59FF8FB8"/>
+    <path android:pathData="M68,66a6,4 0 1,0 12,0a6,4 0 1,0 -12,0" android:fillColor="#59FF8FB8"/>
+
+    <!-- olhos -->
+    <path android:pathData="M38,52a4,4 0 1,0 8,0a4,4 0 1,0 -8,0" android:fillColor="#1B1240"/>
+    <path android:pathData="M62,52a4,4 0 1,0 8,0a4,4 0 1,0 -8,0" android:fillColor="#1B1240"/>
+
+    <!-- sorriso -->
+    <path android:pathData="M44,66 Q54,77 64,66"
+        android:strokeColor="#1B1240" android:strokeWidth="4" android:strokeLineCap="round"/>
 </vector>
