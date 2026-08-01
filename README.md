@@ -101,5 +101,13 @@ To evaluate the prototype, use the following mocked credentials:
 - **Parent Area PIN**: `1234`
 - **Simulated Child Name**: `Lucas`
 
+## 9. Copyright & Licensing
+
+Copyright © 2026 Luiz Augusto Melo. All rights reserved.
+
+This project is an academic prototype. No license to use, modify or distribute is granted. The source code is made available for academic evaluation purposes only.
+
+*Copyright © 2026 Luiz Augusto Melo. Todos os direitos reservados. Este projeto é um protótipo acadêmico. Nenhuma licença de uso, modificação ou distribuição é concedida. O código-fonte está disponível apenas para fins de avaliação acadêmica.*
+
 ---
 *This project is a technical prototype developed for academic purposes.*
