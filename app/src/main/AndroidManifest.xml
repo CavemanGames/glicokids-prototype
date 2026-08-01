@@ -6,9 +6,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Módulo 5 · requisito 5: a cópia externa usa getExternalStorageDirectory() até a
-         API 28. Da 29 em diante o scoped storage bloqueia isso e caímos em
-         getExternalFilesDir(), que não pede permissão. -->
+    <!-- Module 5 · requirement 5: the external copy relies on getExternalStorageDirectory()
+         up to API 28. From API 29 on, scoped storage blocks it and we fall back to
+         getExternalFilesDir(), which requires no permission. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
