@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data extraction rules for API 31+ (android:dataExtractionRules).
+
+    Same exclusions as backup_rules.xml, applied to both transfer channels:
+      - cloud-backup: the account backup that leaves the device;
+      - device-transfer: the direct device-to-device copy during setup.
+
+    Health data is excluded from both. The device-transfer channel could arguably keep
+    the data, since it never reaches a third-party server, but the parent PIN is sealed
+    by a Keystore key that does not travel either way, so restoring it would only produce
+    an undecipherable file.
+
+    Keep this file in sync with backup_rules.xml, which covers API 26-30.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="glicokids_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="glicokids_prefs.xml" />
+        <exclude domain="database" path="glicokids.db" />
+        <exclude domain="file" path="relatorio_glicokids.txt" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="glicokids_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="glicokids_prefs.xml" />
+        <exclude domain="database" path="glicokids.db" />
+        <exclude domain="file" path="relatorio_glicokids.txt" />
+    </device-transfer>
+</data-extraction-rules>

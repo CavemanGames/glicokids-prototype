@@ -5,7 +5,7 @@ import com.glicokids.prototype.domain.model.Result
 import javax.inject.Inject
 
 /**
- * Caso de uso para cálculo de Bolus com tratamento de erros (Resiliência).
+ * Bolus calculation use case with error handling (resilience).
  */
 class CalculateBolusUseCase @Inject constructor() {
 
@@ -17,7 +17,7 @@ class CalculateBolusUseCase @Inject constructor() {
         carbRatio: Int
     ): Result<BolusResult> {
         return try {
-            // Validações de Fail Path
+            // Fail path validations
             if (sensitivityFactor <= 0) {
                 return Result.Failure(IllegalArgumentException("Fator de Sensibilidade deve ser maior que zero."), "Erro de configuração clínica.")
             }
@@ -42,7 +42,7 @@ class CalculateBolusUseCase @Inject constructor() {
 
             val totalDose = foodBolus + correctionBolus
             
-            // Regra de segurança conservadora
+            // Conservative safety rule: always round down in 0.5 U steps
             val safeDose = Math.floor(totalDose * 2) / 2.0
 
             Result.Success(
@@ -53,7 +53,7 @@ class CalculateBolusUseCase @Inject constructor() {
                 )
             )
         } catch (e: Exception) {
-            // Captura erros inesperados (Process Failure / 500 simulado)
+            // Catches unexpected errors (process failure / simulated 500)
             Result.Failure(e, "Ocorreu um erro inesperado no processamento do cálculo.")
         }
     }

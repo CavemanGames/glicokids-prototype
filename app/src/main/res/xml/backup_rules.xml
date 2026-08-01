@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules for API 26-30 (android:fullBackupContent).
+
+    Health data never leaves the device through the system backup. Everything the app
+    persists is health related, so every persistence layer is excluded:
+      - glicokids_secure_prefs: the parent PIN. It is encrypted with a Keystore key that
+        is NOT part of the backup, so a restored copy would be undecipherable anyway and
+        would break the app on first read.
+      - glicokids_prefs: clinical parameters (target range, ISF, I/C ratio).
+      - glicokids.db: glucose readings, meals and medals.
+      - relatorio_glicokids.txt: the 7-day report.
+
+    Keep this file in sync with data_extraction_rules.xml, which covers API 31+.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="glicokids_secure_prefs.xml" />
+    <exclude domain="sharedpref" path="glicokids_prefs.xml" />
+    <exclude domain="database" path="glicokids.db" />
+    <exclude domain="file" path="relatorio_glicokids.txt" />
+</full-backup-content>
