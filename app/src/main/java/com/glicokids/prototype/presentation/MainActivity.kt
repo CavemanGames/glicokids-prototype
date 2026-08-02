@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Requisito Módulo 2: Implementação de AlertDialog.
+     * Module 2 requirement: AlertDialog implementation.
      */
     private fun showSafetyDisclaimer() {
         AlertDialog.Builder(this)
