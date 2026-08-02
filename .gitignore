@@ -30,6 +30,18 @@ render.experimental.xml
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
+# Secrets and signing (preventive - none of these exist in the project today)
+.env
+.env.*
+!.env.example
+secrets.properties
+keystore.properties
+signing.properties
+*.p12
+*.pem
+*.p8
+GoogleService-Info.plist
+
 # Android Profiling
 *.hprof
 

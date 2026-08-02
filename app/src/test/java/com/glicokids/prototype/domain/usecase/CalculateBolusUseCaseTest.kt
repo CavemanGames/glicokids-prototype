@@ -29,7 +29,7 @@ class CalculateBolusUseCaseTest {
             carbs = 40.0,
             currentGlucose = 150,
             targetGlucose = 100,
-            sensitivityFactor = 0, // Erro aqui
+            sensitivityFactor = 0, // Faulty value under test
             carbRatio = 10
         )
 
