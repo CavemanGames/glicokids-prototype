@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b21 · Alertas automáticos. HIPO e HIPER são decisões INDEPENDENTES, cada uma com 3 modos (AUTO/SUGGEST/OFF).
+     Os limites exibidos vêm de range_min/range_max — nunca escrever 70 ou 180 no XML de produção. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:background="#F5F3FA">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageButton android:id="@+id/btnBack"
+                android:layout_width="48dp" android:layout_height="48dp"
+                android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
+                android:contentDescription="Voltar para a Rede de Apoio"/>
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:layout_marginStart="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Alertas automáticos" android:textColor="@color/ink" android:textSize="19sp" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvAlertRecipients"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:orientation="vertical"
+            android:background="@drawable/bg_chip_purple_soft"
+            android:paddingHorizontal="15dp" android:paddingVertical="13dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Por que só o sensor dispara sozinho"
+                android:textColor="@color/primary_dark" android:textSize="13sp" android:textStyle="bold"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Se a criança digitou a glicemia, ela está consciente e interagindo — o app apenas sugere avisar. Se a leitura veio do sensor, ninguém confirmou nada: numa hipo grave a criança pode estar sem sintomas, brincando ou desacordada. Aí o SMS sai sozinho."
+                android:textColor="@color/primary_dark" android:textSize="11sp" android:textStyle="bold"
+                android:lineSpacingMultiplier="1.4"/>
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardCornerRadius="18dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/white" app:strokeWidth="1dp" app:strokeColor="#E3DAF7">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:text="Hipoglicemia" android:textColor="@color/ink" android:textSize="15sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvHypoLimit"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:background="@drawable/bg_chip_danger_soft"
+                        android:paddingHorizontal="10dp" android:paddingVertical="4dp"
+                        android:textColor="@color/danger" android:textSize="11sp" android:textStyle="bold"/>
+                </LinearLayout>
+                <RadioGroup android:id="@+id/rgHypo" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:layout_marginTop="4dp">
+
+                <LinearLayout android:id="@+id/optHypoAuto"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHypoAuto"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Enviar SMS automaticamente" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="leitura do sensor abaixo do limite dispara na hora, sem confirmação" android:textColor="@color/text_muted_light"
+                            android:textSize="11sp" android:textStyle="bold" android:lineSpacingMultiplier="1.25"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/optHypoSuggest"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHypoSuggest"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Só sugerir na tela" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="mostra o aviso e espera um toque" android:textColor="@color/text_muted_light"
+                            android:textSize="11sp" android:textStyle="bold" android:lineSpacingMultiplier="1.25"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/optHypoOff"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHypoOff"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Desativado" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        
+                    </LinearLayout>
+                </LinearLayout>
+                </RadioGroup>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardCornerRadius="18dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/white" app:strokeWidth="1dp" app:strokeColor="#E3DAF7">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:text="Hiperglicemia" android:textColor="@color/ink" android:textSize="15sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvHyperLimit"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:background="@drawable/bg_chip_gold_soft"
+                        android:paddingHorizontal="10dp" android:paddingVertical="4dp"
+                        android:textColor="#8A6D00" android:textSize="11sp" android:textStyle="bold"/>
+                </LinearLayout>
+                <RadioGroup android:id="@+id/rgHyper" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:layout_marginTop="4dp">
+
+                <LinearLayout android:id="@+id/optHyperAuto"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHyperAuto"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Enviar SMS automaticamente" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/optHyperSuggest"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHyperSuggest"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Só sugerir na tela" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/optHyperOff"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:minHeight="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:background="@drawable/bg_option_idle"
+                    android:paddingHorizontal="13dp" android:paddingVertical="11dp"
+                    android:clickable="true" android:focusable="true">
+                    <RadioButton android:id="@+id/rbHyperOff"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:minWidth="48dp" android:minHeight="48dp" android:clickable="false"
+                        android:buttonTint="@color/teal_dark"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Desativado" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="na hiper a criança costuma estar lúcida e consegue se cuidar" android:textColor="@color/text_muted_light"
+                            android:textSize="11sp" android:textStyle="bold" android:lineSpacingMultiplier="1.25"/>
+                    </LinearLayout>
+                </LinearLayout>
+                </RadioGroup>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardCornerRadius="18dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/white" app:strokeWidth="1dp" app:strokeColor="#E3DAF7">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:paddingHorizontal="16dp"
+                android:divider="?android:attr/dividerHorizontal" android:showDividers="middle">
+                <LinearLayout android:id="@+id/rowThrottle"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+                    android:orientation="horizontal" android:gravity="center_vertical" android:paddingVertical="12dp"
+                    android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="Repetir no máximo" android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:text="evita rajada de SMS na mesma crise"
+                            android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"/>
+                    </LinearLayout>
+                    <TextView android:id="@+id/tvThrottleValue"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:background="@drawable/bg_chip_purple_soft"
+                        android:paddingHorizontal="12dp" android:paddingVertical="6dp"
+                        android:textColor="@color/primary_dark" android:textSize="12sp" android:textStyle="bold"/>
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/swRecoveryNotice"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+                    android:text="Avisar quando voltar à meta"
+                    android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView android:id="@+id/tvLimitsSource"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:gravity="center"
+            android:text="os limites vêm da faixa alvo configurada na Área dos Pais"
+            android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"/>
+    </LinearLayout>
+</ScrollView>

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- b12/b13 · Célula da GridView. Adapter define ivMedalIcon (ic_medal_gold/teal/purple/locked) e alpha 0.45 se bloqueada. -->
+<!-- b12/b13 · Célula da GridView. Adapter define ivMedalIcon (ic_medal_gold/teal/purple/locked) e alpha 0.45 se bloqueada.
+     Módulo 6 · btnMedalMore (⋮) é a via visível para "Ver Detalhes"/"Compartilhar" — mesma ação do
+     long-press (registerForContextMenu continua existindo). Só aparece em medalhas desbloqueadas. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -8,23 +10,36 @@
     app:cardCornerRadius="18dp" app:cardElevation="2dp"
     app:cardBackgroundColor="@android:color/white">
 
-    <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:padding="12dp" android:gravity="center">
+    <FrameLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content">
 
-        <ImageView
-            android:id="@+id/ivMedalIcon"
-            android:layout_width="52dp" android:layout_height="52dp"
-            android:scaleType="centerInside"
-            tools:src="@drawable/ic_medal_gold"
-            android:contentDescription="Medalha"/>
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="12dp" android:gravity="center">
 
-        <TextView
-            android:id="@+id/tvMedalName"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textAlignment="center"
-            android:textColor="@color/ink" android:textSize="11sp" android:textStyle="bold"
-            tools:text="Primeira Missão"/>
-    </LinearLayout>
+            <ImageView
+                android:id="@+id/ivMedalIcon"
+                android:layout_width="52dp" android:layout_height="52dp"
+                android:scaleType="centerInside"
+                tools:src="@drawable/ic_medal_gold"
+                tools:contentDescription="Medalha Primeira Missão, ouro, conquistada"/>
+
+            <TextView
+                android:id="@+id/tvMedalName"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAlignment="center"
+                android:textColor="@color/ink" android:textSize="11sp" android:textStyle="bold"
+                tools:text="Primeira Missão"/>
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnMedalMore"
+            android:layout_width="48dp" android:layout_height="48dp"
+            android:layout_gravity="top|end"
+            android:padding="12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_more_vert_ink"
+            android:contentDescription="Mais opções desta medalha"/>
+    </FrameLayout>
 </com.google.android.material.card.MaterialCardView>

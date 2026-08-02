@@ -3,7 +3,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/bg_night_stars">
+    android:background="@drawable/bg_gradient_night">
 
     <ImageView
         android:id="@+id/ivLogo"
@@ -25,6 +25,23 @@
         app:layout_constraintTop_toBottomOf="@id/ivLogo"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- b1 · 3 pontos de carregamento (handoff-android.md §7). O código anima a opacidade em
+         sequência; estáticos, continuam fiéis ao desenho. -->
+    <LinearLayout
+        android:id="@+id/llLoadingDots"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginBottom="72dp"
+        android:importantForAccessibility="no"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent">
+        <View android:id="@+id/dotLoad1" android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_marginHorizontal="5dp" android:background="@drawable/bg_circle_teal"/>
+        <View android:id="@+id/dotLoad2" android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_marginHorizontal="5dp" android:alpha="0.55" android:background="@drawable/bg_circle_teal"/>
+        <View android:id="@+id/dotLoad3" android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_marginHorizontal="5dp" android:alpha="0.25" android:background="@drawable/bg_circle_teal"/>
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tvTagline"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -32,18 +49,4 @@
         android:textColor="@color/text_muted_dark" android:textSize="13sp" android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/tvAppName"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
-
-    <!-- b1 · 3 dots de loading: o ativo em teal, os outros em branco 35%. -->
-    <LinearLayout
-        android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_marginTop="48dp" android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/tvTagline"
-        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent">
-        <View android:id="@+id/dotLoad1" android:layout_width="9dp" android:layout_height="9dp"
-            android:layout_marginHorizontal="4dp" android:background="@drawable/bg_circle_teal"/>
-        <View android:id="@+id/dotLoad2" android:layout_width="9dp" android:layout_height="9dp"
-            android:layout_marginHorizontal="4dp" android:background="@drawable/bg_dot_inactive"/>
-        <View android:id="@+id/dotLoad3" android:layout_width="9dp" android:layout_height="9dp"
-            android:layout_marginHorizontal="4dp" android:background="@drawable/bg_dot_inactive"/>
-    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

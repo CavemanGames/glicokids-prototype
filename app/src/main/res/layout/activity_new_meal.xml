@@ -18,7 +18,7 @@
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="40dp" android:layout_height="40dp"
+            android:layout_width="48dp" android:layout_height="48dp"
             android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
             android:contentDescription="Voltar"
             app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent"/>
@@ -45,8 +45,6 @@
                 <ImageView
                     android:id="@+id/ivMealPhoto"
                     android:layout_width="match_parent" android:layout_height="match_parent"
-                    android:layout_margin="14dp"
-                    android:background="@drawable/bg_photo_placeholder"
                     android:scaleType="centerCrop"
                     android:contentDescription="Foto do prato"/>
 
@@ -67,8 +65,7 @@
                     android:layout_marginBottom="20dp"
                     android:insetTop="0dp" android:insetBottom="0dp"
                     android:paddingHorizontal="24dp"
-                    app:icon="@drawable/ic_camera_small" app:iconGravity="textStart"
-                    app:iconPadding="8dp" app:iconTint="@color/ink"
+                    android:drawableStart="@drawable/ic_camera_small" android:drawablePadding="8dp"
                     android:text="Fotografar o prato" android:textSize="15sp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
@@ -128,7 +125,7 @@
             android:id="@+id/etCurrentGlucose"
             android:layout_width="match_parent" android:layout_height="60dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/bg_input_light"
+            android:background="@drawable/bg_input_field"
             android:hint="Ex: 110"
             android:importantForAutofill="no"
             android:inputType="number"

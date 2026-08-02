@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b19 · linha da rede de apoio. Alvos de toque: todos com 48dp (regra §10 do handoff-android.md). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:paddingVertical="12dp" android:baselineAligned="false">
+
+    <TextView android:id="@+id/tvContactInitials"
+        android:layout_width="38dp" android:layout_height="38dp"
+        android:background="@drawable/bg_circle_initials" android:backgroundTint="@color/primary"
+        android:gravity="center" android:textColor="@android:color/white"
+        android:textSize="13sp" android:textStyle="bold"
+        android:importantForAccessibility="no" tools:text="AS"/>
+
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:orientation="vertical" android:layout_marginStart="11dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/tvContactName"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="@color/ink" android:textSize="14sp" android:textStyle="bold"
+                tools:text="Ana Souza"/>
+            <TextView android:id="@+id/tvContactRelationship"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="6dp" android:background="@drawable/bg_chip_purple_soft"
+                android:paddingHorizontal="7dp" android:paddingVertical="2dp"
+                android:textColor="#5E35B1" android:textSize="9sp" android:textStyle="bold"
+                android:letterSpacing="0.04" android:textAllCaps="true" tools:text="Mãe"/>
+            <TextView android:id="@+id/tvContactPrimary"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="6dp" android:background="@drawable/bg_chip_success_soft"
+                android:paddingHorizontal="7dp" android:paddingVertical="2dp" android:visibility="gone"
+                android:text="PRINCIPAL" android:textColor="#00785B" android:textSize="9sp"
+                android:textStyle="bold" android:letterSpacing="0.04"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="3dp">
+            <TextView android:id="@+id/tvContactChannels"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"
+                tools:text="(11) 98877-6543 · ana.souza@email.com"/>
+            <!-- affordance VISÍVEL do menu de contexto: mesma ação do long-press -->
+            <ImageButton android:id="@+id/btnContactMenu"
+                android:layout_width="48dp" android:layout_height="48dp"
+                android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_more_vert_ink"
+                android:contentDescription="Mais opções deste contato"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="48dp">
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swReceivesAlert"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:minHeight="48dp" android:text="SMS de alerta"
+                android:textColor="#5E4DB2" android:textSize="11sp" android:textStyle="bold"/>
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swReceivesReport"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:minHeight="48dp" android:text="Relatório"
+                android:textColor="#5E4DB2" android:textSize="11sp" android:textStyle="bold"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

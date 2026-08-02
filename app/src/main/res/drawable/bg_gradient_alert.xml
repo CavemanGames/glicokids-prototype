@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b22 · fundo da tela de hipoglicemia (única tela vermelha do app). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><gradient android:type="linear" android:angle="270"
+        android:startColor="#4A1016" android:centerColor="#2A0A12" android:endColor="#1A0610"/></shape></item>
+    <item><shape android:shape="rectangle"><gradient android:type="radial"
+        android:gradientRadius="320dp" android:centerX="0.5" android:centerY="0.2"
+        android:startColor="#80EF5350" android:endColor="#00EF5350"/></shape></item>
+</layer-list>

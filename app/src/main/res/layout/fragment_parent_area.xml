@@ -11,7 +11,7 @@
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="40dp" android:layout_height="40dp"
+            android:layout_width="48dp" android:layout_height="48dp"
             android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
             android:contentDescription="Voltar"
             app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent"/>
@@ -192,8 +192,7 @@
             android:id="@+id/llReportActions"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="14dp" android:orientation="horizontal"
-            app:layout_constraintTop_toBottomOf="@id/cvReport"
-            app:layout_constraintBottom_toBottomOf="parent">
+            app:layout_constraintTop_toBottomOf="@id/cvReport">
             <Button
                 android:id="@+id/btnExportReport"
                 android:layout_width="0dp" android:layout_weight="1" android:layout_height="56dp"
@@ -211,5 +210,54 @@
                 android:textColor="@color/primary_dark" android:textSize="13sp" android:textStyle="bold"
                 app:strokeColor="@color/primary_dark"/>
         </LinearLayout>
+
+        <!-- Módulo 6 · requisito 4: relatório por e-mail (ACTION_SEND) para quem tem receives_report=1 -->
+        <Button
+            android:id="@+id/btnEmailReport"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent" android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:text="Enviar por e-mail ✉" android:textAllCaps="false"
+            android:textColor="@color/primary_dark" android:textSize="13sp" android:textStyle="bold"
+            app:strokeColor="@color/primary_dark"
+            android:contentDescription="Enviar o relatório de 7 dias por e-mail"
+            app:layout_constraintTop_toBottomOf="@id/llReportActions"/>
+
+        <!-- Módulo 6 · porta de entrada da Rede de Apoio (b19) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvSupportNetwork"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:minHeight="48dp"
+            app:cardCornerRadius="18dp" app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:strokeWidth="1dp" app:strokeColor="#E3DAF7"
+            android:clickable="true" android:focusable="true"
+            app:layout_constraintTop_toBottomOf="@id/btnEmailReport"
+            app:layout_constraintBottom_toBottomOf="parent">
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:paddingHorizontal="16dp" android:paddingVertical="12dp">
+                <LinearLayout
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="REDE DE APOIO" android:letterSpacing="0.05"
+                        android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvSupportNetworkSummary"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Nenhum contato além do responsável"
+                        android:textColor="@color/ink" android:textSize="12sp" android:textStyle="bold"/>
+                </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:background="@drawable/bg_chip_purple_soft"
+                    android:paddingHorizontal="12dp" android:paddingVertical="6dp"
+                    android:text="Abrir ›" android:textColor="@color/primary_dark" android:textSize="12sp" android:textStyle="bold"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>
