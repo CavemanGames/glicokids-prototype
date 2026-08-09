@@ -1,5 +1,6 @@
 package com.glicokids.prototype.presentation.kids
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -97,8 +98,23 @@ class GlucoseLogActivity : AppCompatActivity() {
                 this@GlucoseLogActivity,
                 "Glicemia $value mg/dL registrada · +$XP_PER_READING XP"
             )
+            // b22 — a reading outside the target range escalates to the alert screen
+            // instead of just closing; ShouldAutoAlertUseCase decides from there whether
+            // that escalation actually sends anything.
+            if (reading.status != UIHelper.GlucoseStatus.NA_META) {
+                openGlucoseAlert(reading)
+            }
             finish()
         }
+    }
+
+    private fun openGlucoseAlert(reading: GlucoseReading) {
+        val intent = Intent(this, GlucoseAlertActivity::class.java).apply {
+            putExtra(GlucoseAlertActivity.EXTRA_VALUE, reading.valueMgdl)
+            putExtra(GlucoseAlertActivity.EXTRA_TIMESTAMP, reading.createdAt)
+            putExtra(GlucoseAlertActivity.EXTRA_SOURCE, reading.source.name)
+        }
+        startActivity(intent)
     }
 
     private fun updateDisplay() {

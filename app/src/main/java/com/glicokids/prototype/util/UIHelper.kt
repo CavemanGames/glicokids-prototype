@@ -50,6 +50,17 @@ object UIHelper {
     }
 
     /**
+     * b22 — dials the caregiver's own phone app for the primary contact's number via
+     * `ACTION_DIAL`, which needs no runtime permission because the user still presses
+     * call inside the dialer. Returns `false` instead of throwing on a device with no
+     * dialer app.
+     */
+    fun dialPhone(context: Context, phone: String): Boolean {
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+        return startExternalActivity(context, intent)
+    }
+
+    /**
      * Both communication hand-offs above may be called with a non-[android.app.Activity]
      * context (a `Service`, the `Application` itself) — Android refuses `startActivity`
      * from those without `FLAG_ACTIVITY_NEW_TASK`, so it is added whenever the context
