@@ -13,6 +13,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/** Which form field a [ContactValidationError] belongs to, so a caller can route the
+ * message to the right input without pattern-matching on the message text. */
+enum class ContactValidationField { NAME, PHONE, EMAIL }
+
+/** Result of [SupportNetworkViewModel.validateContact]: the failing field plus the
+ * pt-BR message to show the user. */
+data class ContactValidationError(val field: ContactValidationField, val message: String)
+
 /**
  * b19/b20 — Support network. Owns contact validation and persistence; the primary
  * contact's own removal guard lives in [GlicoKidsDbHelper.deleteContact] alone, this
@@ -28,8 +36,8 @@ class SupportNetworkViewModel @Inject constructor(
     private val _contacts = MutableLiveData<List<Contact>>()
     val contacts: LiveData<List<Contact>> = _contacts
 
-    private val _validationError = MutableLiveData<String?>()
-    val validationError: LiveData<String?> = _validationError
+    private val _validationError = MutableLiveData<ContactValidationError?>()
+    val validationError: LiveData<ContactValidationError?> = _validationError
 
     private val _summaryText = MutableLiveData<String?>()
     val summaryText: LiveData<String?> = _summaryText
@@ -58,30 +66,16 @@ class SupportNetworkViewModel @Inject constructor(
         receivesReport: Boolean,
         nowMillis: Long = System.currentTimeMillis()
     ): Boolean {
-        val trimmedName = name.trim()
-        val phoneDigits = phone.count { it.isDigit() }
+        val error = validateContact(name, phone, email, receivesReport)
+        if (error != null) {
+            _validationError.value = error
+            return false
+        }
+
         val trimmedEmail = email?.trim().orEmpty()
-
-        if (trimmedName.isEmpty()) {
-            _validationError.value = "Informe um nome"
-            return false
-        }
-        if (phoneDigits !in 10..11) {
-            _validationError.value = "Informe um celular com DDD (10 ou 11 dígitos)"
-            return false
-        }
-        if (trimmedEmail.isNotEmpty() && !isValidEmail(trimmedEmail)) {
-            _validationError.value = "Informe um e-mail válido"
-            return false
-        }
-        if (receivesReport && trimmedEmail.isEmpty()) {
-            _validationError.value = "O relatório por e-mail exige um endereço"
-            return false
-        }
-
         val contact = Contact(
             id = existing?.id ?: 0L,
-            name = trimmedName,
+            name = name.trim(),
             relationship = relationship,
             phone = phone,
             email = trimmedEmail.takeIf { it.isNotEmpty() },
@@ -99,6 +93,42 @@ class SupportNetworkViewModel @Inject constructor(
         _validationError.value = null
         refresh()
         return true
+    }
+
+    /**
+     * Single authority for contact validation. [saveContact] calls it to decide whether to
+     * persist and what to publish in [validationError]; [SupportNetworkActivity] calls the
+     * exact same function to drive the Save button's live enabled state as the user types.
+     * Pure and side-effect free, so both callers always agree — a rule change here can never
+     * leave the button enabled on an entry the ViewModel then refuses.
+     */
+    fun validateContact(
+        name: String,
+        phone: String,
+        email: String?,
+        receivesReport: Boolean
+    ): ContactValidationError? {
+        val trimmedName = name.trim()
+        val phoneDigits = phone.count { it.isDigit() }
+        val trimmedEmail = email?.trim().orEmpty()
+
+        return when {
+            trimmedName.isEmpty() ->
+                ContactValidationError(ContactValidationField.NAME, "Informe um nome")
+            phoneDigits !in 10..11 ->
+                ContactValidationError(
+                    ContactValidationField.PHONE,
+                    "Informe um celular com DDD (10 ou 11 dígitos)"
+                )
+            trimmedEmail.isNotEmpty() && !isValidEmail(trimmedEmail) ->
+                ContactValidationError(ContactValidationField.EMAIL, "Informe um e-mail válido")
+            receivesReport && trimmedEmail.isEmpty() ->
+                ContactValidationError(
+                    ContactValidationField.EMAIL,
+                    "O relatório por e-mail exige um endereço"
+                )
+            else -> null
+        }
     }
 
     /** Delegates straight to the helper — the primary-contact guard lives there alone. */

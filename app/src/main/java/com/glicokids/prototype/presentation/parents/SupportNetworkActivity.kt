@@ -272,20 +272,16 @@ class SupportNetworkActivity : AppCompatActivity() {
     }
 
     /**
-     * Same rules [SupportNetworkViewModel.saveContact] enforces, mirrored here only to
-     * drive the Save button's enabled state in real time — the ViewModel call above is
-     * still the one authority that actually decides whether the contact is written.
+     * Delegates to [SupportNetworkViewModel.validateContact] — the one authority for the
+     * rules — only to drive the Save button's enabled state in real time as the user types.
      */
     private fun isFormValid(b: DialogContactBinding): Boolean {
-        val name = b.etContactName.text?.toString()?.trim().orEmpty()
-        val phoneDigits = b.etContactPhone.text?.toString()?.count { it.isDigit() } ?: 0
-        val email = b.etContactEmail.text?.toString()?.trim().orEmpty()
-
-        if (name.isEmpty()) return false
-        if (phoneDigits !in 10..11) return false
-        if (email.isNotEmpty() && !EMAIL_PATTERN.matches(email)) return false
-        if (b.swDlgReceivesReport.isChecked && email.isEmpty()) return false
-        return true
+        return viewModel.validateContact(
+            name = b.etContactName.text?.toString().orEmpty(),
+            phone = b.etContactPhone.text?.toString().orEmpty(),
+            email = b.etContactEmail.text?.toString(),
+            receivesReport = b.swDlgReceivesReport.isChecked
+        ) == null
     }
 
     private fun clearDialogErrors(b: DialogContactBinding) {
@@ -294,12 +290,12 @@ class SupportNetworkActivity : AppCompatActivity() {
         b.tilContactEmail.error = null
     }
 
-    private fun applyDialogError(b: DialogContactBinding, message: String?) {
-        val text = message ?: return
-        when {
-            text.contains("nome", ignoreCase = true) -> b.tilContactName.error = text
-            text.contains("celular", ignoreCase = true) -> b.tilContactPhone.error = text
-            else -> b.tilContactEmail.error = text
+    private fun applyDialogError(b: DialogContactBinding, error: ContactValidationError?) {
+        error ?: return
+        when (error.field) {
+            ContactValidationField.NAME -> b.tilContactName.error = error.message
+            ContactValidationField.PHONE -> b.tilContactPhone.error = error.message
+            ContactValidationField.EMAIL -> b.tilContactEmail.error = error.message
         }
     }
 
@@ -320,6 +316,5 @@ class SupportNetworkActivity : AppCompatActivity() {
         private const val MENU_EDIT = 1
         private const val MENU_TEST = 2
         private const val MENU_REMOVE = 3
-        private val EMAIL_PATTERN = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
     }
 }
