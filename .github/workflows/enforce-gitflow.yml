@@ -1,8 +1,13 @@
 name: Enforce Git Flow
 
+# Runs for pull requests into both protected branches. The quality gate ruleset
+# requires this check on `main` AND on `staging`, so a workflow that only
+# triggered for `main` left every pull request into `staging` waiting forever
+# for a status that was never going to be reported.
+
 on:
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 permissions:
   contents: read
@@ -11,16 +16,37 @@ jobs:
   check-source-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Allow only staging or hotfix/* into main
+      - name: Check the source branch is allowed into the target branch
         run: |
           HEAD="${{ github.head_ref }}"
-          echo "PR source branch: $HEAD -> main"
-          case "$HEAD" in
-            staging|hotfix/*)
-              echo "OK: '$HEAD' is allowed to merge into main."
+          BASE="${{ github.base_ref }}"
+          echo "Pull request: $HEAD -> $BASE"
+          case "$BASE" in
+            main)
+              # Releases come from staging; emergencies come from hotfix/*.
+              case "$HEAD" in
+                staging|hotfix/*)
+                  echo "OK: '$HEAD' may merge into main."
+                  ;;
+                *)
+                  echo "::error::Pull requests into 'main' must come from 'staging' or 'hotfix/*'. Got: '$HEAD'"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            staging)
+              # Everyday work reaches staging first, under a known prefix.
+              case "$HEAD" in
+                feature/*|feat/*|fix/*|hotfix/*|chore/*|docs/*|refactor/*|test/*|backport/*)
+                  echo "OK: '$HEAD' may merge into staging."
+                  ;;
+                *)
+                  echo "::error::Pull requests into 'staging' must come from feature/*, feat/*, fix/*, hotfix/*, chore/*, docs/*, refactor/*, test/* or backport/*. Got: '$HEAD'"
+                  exit 1
+                  ;;
+              esac
               ;;
             *)
-              echo "::error::PRs to 'main' must come from 'staging' or 'hotfix/*'. Got: '$HEAD'"
-              exit 1
+              echo "No branch rule defined for '$BASE'; nothing to enforce."
               ;;
           esac

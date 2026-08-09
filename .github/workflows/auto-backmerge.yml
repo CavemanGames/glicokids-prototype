@@ -3,6 +3,10 @@ name: Auto back-merge main → staging
 on:
   push:
     branches: [main]
+  # Manual trigger: lets the back-merge be re-run from the Actions tab without
+  # waiting for a push to main — needed whenever a run fails for a reason
+  # outside the code, such as an expired or re-scoped credential.
+  workflow_dispatch:
 
 permissions:
   contents: write
