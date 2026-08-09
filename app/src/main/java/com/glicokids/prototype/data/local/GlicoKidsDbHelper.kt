@@ -81,19 +81,25 @@ class GlicoKidsDbHelper @Inject constructor(
             """.trimIndent()
         )
         createContactsTable(db)
+        createReceivedMessagesTable(db)
 
         seedFoods(db)
         seedMedals(db)
     }
 
     /**
-     * Module 6 — schema v2: adds the `contacts` table without touching the existing
-     * tables. Glucose history, meals, medals and foods must survive the upgrade —
-     * never `DROP TABLE` here.
+     * Module 6 — schema v2 adds `contacts`, schema v3 adds `received_messages`. Each
+     * step only adds the table it owns and never touches the ones before it — glucose
+     * history, meals, medals, foods and contacts must survive every upgrade, so no
+     * `DROP TABLE` here. A jump straight from v1 to v3 must apply both steps in the
+     * same pass, which is why each is guarded by its own `if`, not an `else`.
      */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             createContactsTable(db)
+        }
+        if (oldVersion < 3) {
+            createReceivedMessagesTable(db)
         }
     }
 
@@ -111,6 +117,25 @@ class GlicoKidsDbHelper @Inject constructor(
               receives_report INTEGER NOT NULL DEFAULT 0,
               is_primary INTEGER NOT NULL DEFAULT 0,
               created_at INTEGER NOT NULL
+            );
+            """.trimIndent()
+        )
+    }
+
+    /**
+     * Module 6 — schema v3: the incoming-message inbox behind requirement 3 (b23). Shared
+     * by [onCreate] and [onUpgrade], same as [createContactsTable]. `contact_id` is left
+     * nullable on purpose — an unknown sender still gets its message stored and shown.
+     */
+    private fun createReceivedMessagesTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE received_messages (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              sender_phone TEXT NOT NULL,
+              contact_id INTEGER,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL
             );
             """.trimIndent()
         )
@@ -419,6 +444,6 @@ class GlicoKidsDbHelper @Inject constructor(
 
     companion object {
         const val DB_NAME = "glicokids.db"
-        const val DB_VERSION = 2
+        const val DB_VERSION = 3
     }
 }

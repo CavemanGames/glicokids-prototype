@@ -12,6 +12,16 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Module 6 · communication: SEND_SMS/RECEIVE_SMS back the SMS gateway and receiver,
+         POST_NOTIFICATIONS is required on targetSdk 34 or the incoming-message notification
+         is silently dropped. The four activities and the SmsReceiver these permissions serve
+         are declared later, together with the classes that implement them — declaring a
+         component against a class that does not exist yet builds fine and crashes at
+         runtime, so this list is intentionally incomplete for now. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".GlicoKidsApplication"
         android:allowBackup="true"
