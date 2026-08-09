@@ -8,6 +8,7 @@ import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.databinding.ActivityGlucoseLogBinding
+import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -85,7 +86,7 @@ class GlucoseLogActivity : AppCompatActivity() {
         val reading = GlucoseReading(
             valueMgdl = value,
             status = UIHelper.glucoseStatus(value, prefs.rangeMin, prefs.rangeMax),
-            source = if (sensorMode) GlucoseReading.Source.SENSOR else GlucoseReading.Source.MANUAL,
+            source = if (sensorMode) ReadingSource.SENSOR else ReadingSource.MANUAL,
             createdAt = System.currentTimeMillis()
         )
 

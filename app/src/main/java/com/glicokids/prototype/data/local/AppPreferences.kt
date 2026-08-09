@@ -2,6 +2,7 @@ package com.glicokids.prototype.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.glicokids.prototype.domain.model.AlertMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -83,6 +84,33 @@ class AppPreferences @Inject constructor(
         get() = prefs.getLong(KEY_LAST_REPORT_AT, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_REPORT_AT, value).apply()
 
+    // --- Alert prefs (Module 6) ---
+    // Hypo and hyper are independent decisions — never a single switch for both.
+    var alertModeHypo: AlertMode
+        get() = runCatching { AlertMode.valueOf(prefs.getString(KEY_ALERT_MODE_HYPO, null) ?: "") }
+            .getOrDefault(DEFAULT_ALERT_MODE_HYPO)
+        set(value) = prefs.edit().putString(KEY_ALERT_MODE_HYPO, value.name).apply()
+
+    var alertModeHyper: AlertMode
+        get() = runCatching { AlertMode.valueOf(prefs.getString(KEY_ALERT_MODE_HYPER, null) ?: "") }
+            .getOrDefault(DEFAULT_ALERT_MODE_HYPER)
+        set(value) = prefs.edit().putString(KEY_ALERT_MODE_HYPER, value.name).apply()
+
+    /** Minimum interval, in minutes, between two automatic alerts. */
+    var alertThrottleMin: Int
+        get() = prefs.getInt(KEY_ALERT_THROTTLE_MIN, DEFAULT_ALERT_THROTTLE_MIN)
+        set(value) = prefs.edit().putInt(KEY_ALERT_THROTTLE_MIN, value).apply()
+
+    /** Whether a return to the target range also triggers a notice. */
+    var alertOnRecovery: Boolean
+        get() = prefs.getBoolean(KEY_ALERT_ON_RECOVERY, DEFAULT_ALERT_ON_RECOVERY)
+        set(value) = prefs.edit().putBoolean(KEY_ALERT_ON_RECOVERY, value).apply()
+
+    /** Epoch millis of the last alert sent; 0 = never sent. */
+    var lastAlertAt: Long
+        get() = prefs.getLong(KEY_LAST_ALERT_AT, DEFAULT_LAST_ALERT_AT)
+        set(value) = prefs.edit().putLong(KEY_LAST_ALERT_AT, value).apply()
+
     /** Writes the target range in a single transaction — both ends change together. */
     fun saveTargetRange(min: Int, max: Int) {
         prefs.edit()
@@ -107,6 +135,11 @@ class AppPreferences @Inject constructor(
         const val KEY_STREAK = "streak"
         const val KEY_ONBOARDING_DONE = "onboarding_done"
         const val KEY_LAST_REPORT_AT = "last_report_at"
+        const val KEY_ALERT_MODE_HYPO = "alert_mode_hypo"
+        const val KEY_ALERT_MODE_HYPER = "alert_mode_hyper"
+        const val KEY_ALERT_THROTTLE_MIN = "alert_throttle_min"
+        const val KEY_ALERT_ON_RECOVERY = "alert_on_recovery"
+        const val KEY_LAST_ALERT_AT = "last_alert_at"
 
         const val DEFAULT_CHILD_NAME = "Lucas"
         const val DEFAULT_RANGE_MIN = 70
@@ -116,8 +149,31 @@ class AppPreferences @Inject constructor(
         const val DEFAULT_IC_RATIO = 15
         const val DEFAULT_MAX_DOSE = 6
 
+        /** Hypo defaults to AUTO (risk of loss of consciousness); hyper defaults to SUGGEST. */
+        val DEFAULT_ALERT_MODE_HYPO = AlertMode.AUTO
+        val DEFAULT_ALERT_MODE_HYPER = AlertMode.SUGGEST
+        const val DEFAULT_ALERT_THROTTLE_MIN = 30
+        const val DEFAULT_ALERT_ON_RECOVERY = true
+        const val DEFAULT_LAST_ALERT_AT = 0L
+
         /** Accepted bounds when editing the target range (handoff §8). */
         const val RANGE_ABSOLUTE_MIN = 40
         const val RANGE_ABSOLUTE_MAX = 300
+
+        /** Accepted bounds when editing the insulin sensitivity factor. */
+        const val ISF_ABSOLUTE_MIN = 1
+        const val ISF_ABSOLUTE_MAX = 500
+
+        /** Accepted bounds when editing the insulin-to-carbohydrate ratio. */
+        const val IC_RATIO_ABSOLUTE_MIN = 1
+        const val IC_RATIO_ABSOLUTE_MAX = 100
+
+        /** Accepted bounds when editing the single target glucose value. */
+        const val TARGET_GLUCOSE_ABSOLUTE_MIN = 70
+        const val TARGET_GLUCOSE_ABSOLUTE_MAX = 150
+
+        /** Accepted bounds when editing the maximum dose lock. */
+        const val MAX_DOSE_ABSOLUTE_MIN = 1
+        const val MAX_DOSE_ABSOLUTE_MAX = 50
     }
 }

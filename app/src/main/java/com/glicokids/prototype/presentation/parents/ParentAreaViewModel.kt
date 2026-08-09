@@ -174,10 +174,10 @@ class ParentAreaViewModel @Inject constructor(
     }
 
     enum class Param(val range: IntRange) {
-        ISF(1..500),
-        IC_RATIO(1..100),
-        TARGET(70..150),
-        MAX_DOSE(1..50)
+        ISF(AppPreferences.ISF_ABSOLUTE_MIN..AppPreferences.ISF_ABSOLUTE_MAX),
+        IC_RATIO(AppPreferences.IC_RATIO_ABSOLUTE_MIN..AppPreferences.IC_RATIO_ABSOLUTE_MAX),
+        TARGET(AppPreferences.TARGET_GLUCOSE_ABSOLUTE_MIN..AppPreferences.TARGET_GLUCOSE_ABSOLUTE_MAX),
+        MAX_DOSE(AppPreferences.MAX_DOSE_ABSOLUTE_MIN..AppPreferences.MAX_DOSE_ABSOLUTE_MAX)
     }
 
     // ------------------------------------------------------------------

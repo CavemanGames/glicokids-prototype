@@ -1,5 +1,6 @@
 package com.glicokids.prototype.data.model
 
+import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 
 /** A glucose reading stored in the `glucose_readings` table. */
@@ -7,11 +8,9 @@ data class GlucoseReading(
     val id: Long = 0,
     val valueMgdl: Int,
     val status: UIHelper.GlucoseStatus,
-    val source: Source,
+    val source: ReadingSource,
     val createdAt: Long
-) {
-    enum class Source { MANUAL, SENSOR }
-}
+)
 
 /** A meal logged through the Meal Mission (`meals` table). */
 data class MealEntry(
@@ -41,4 +40,17 @@ data class Food(
     val porcao: String,
     val gramas: Int,
     val carboidratoG: Int
+)
+
+/** A support network member — each person has independent alert/report permissions (`contacts` table, schema v2). */
+data class Contact(
+    val id: Long = 0,
+    val name: String,
+    val relationship: String,
+    val phone: String,
+    val email: String?,
+    val receivesAlert: Boolean,
+    val receivesReport: Boolean,
+    val isPrimary: Boolean,
+    val createdAt: Long
 )
