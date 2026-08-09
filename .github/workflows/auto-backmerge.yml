@@ -3,6 +3,10 @@ name: Auto back-merge main → staging
 on:
   push:
     branches: [main]
+  # Manual trigger: lets the back-merge be re-run from the Actions tab without
+  # waiting for a push to main — needed whenever a run fails for a reason
+  # outside the code, such as an expired or re-scoped credential.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (histórico completo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           token: ${{ secrets.BACKPORT_TOKEN }}
