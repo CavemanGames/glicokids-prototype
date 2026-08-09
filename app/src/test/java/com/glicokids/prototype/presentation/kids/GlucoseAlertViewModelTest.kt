@@ -58,6 +58,12 @@ class GlucoseAlertViewModelTest {
      * Same pattern as `SupportNetworkViewModelTest.getOrAwaitValue` — needed because the
      * send path hops through the real Dispatchers.IO, which an Unconfined test dispatcher
      * cannot observe synchronously.
+     *
+     * Only safe for the *first* emission a test waits on. `observeForever` replays
+     * whatever value is already stored the instant it is called, so a second call on a
+     * LiveData that already holds a value returns that stale value immediately instead of
+     * waiting for a later one — use [awaitNextValue] whenever an action is expected to
+     * produce a value distinct from the one already there.
      */
     private fun <T> LiveData<T>.getOrAwaitValue(timeoutSeconds: Long = 2): T {
         var data: T? = null
@@ -72,6 +78,39 @@ class GlucoseAlertViewModelTest {
         observeForever(observer)
         if (!latch.await(timeoutSeconds, TimeUnit.SECONDS)) {
             throw TimeoutException("LiveData value never set within ${timeoutSeconds}s.")
+        }
+        @Suppress("UNCHECKED_CAST")
+        return data as T
+    }
+
+    /**
+     * Runs [action] and blocks (bounded, no busy-wait) until [this] emits a value distinct
+     * from the one already stored, then returns it. The observer is registered before
+     * [action] runs, so an emission racing the registration is never missed the way it
+     * would be with a plain `getOrAwaitValue()` call after the fact.
+     *
+     * The ViewModel never mutates a state object in place — every `_uiState.value = ...`
+     * assigns a fresh data class instance — so reference identity against the value
+     * captured before [action] runs reliably tells a stale replay apart from a genuinely
+     * new emission, without needing a flag to track subscription timing.
+     */
+    private fun <T> LiveData<T>.awaitNextValue(timeoutSeconds: Long = 2, action: () -> Unit): T {
+        val previousValue = value
+        var data: T? = null
+        val latch = CountDownLatch(1)
+        val observer = object : Observer<T> {
+            override fun onChanged(value: T) {
+                if (value === previousValue) return
+                data = value
+                latch.countDown()
+                this@awaitNextValue.removeObserver(this)
+            }
+        }
+        observeForever(observer)
+        action()
+        if (!latch.await(timeoutSeconds, TimeUnit.SECONDS)) {
+            removeObserver(observer)
+            throw TimeoutException("LiveData did not emit a new value within ${timeoutSeconds}s.")
         }
         @Suppress("UNCHECKED_CAST")
         return data as T
@@ -202,8 +241,7 @@ class GlucoseAlertViewModelTest {
         viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
         viewModel.uiState.getOrAwaitValue()
 
-        viewModel.confirmSend(nowMillis = now)
-        val sent = viewModel.uiState.getOrAwaitValue()
+        val sent = viewModel.uiState.awaitNextValue { viewModel.confirmSend(nowMillis = now) }
 
         verify { smsGateway.sendTextMessage("11988776543", message) }
         verify { prefs.lastAlertAt = now }
