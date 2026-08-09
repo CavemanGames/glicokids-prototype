@@ -98,6 +98,11 @@ class ParentAreaFragment : Fragment() {
         binding.cvReport.setOnClickListener { showReport() }
         binding.btnExportReport.setOnClickListener { exportReport() }
         binding.btnExportExternal.setOnClickListener { confirmExternalCopy() }
+
+        // b19 — protected by PIN simply by living inside the Parent Area.
+        binding.cvSupportNetwork.setOnClickListener {
+            UIHelper.navigateTo(requireContext(), SupportNetworkActivity::class.java)
+        }
     }
 
     private fun observeViewModel() {

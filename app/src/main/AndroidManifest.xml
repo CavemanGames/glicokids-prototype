@@ -83,6 +83,11 @@
             android:name=".presentation.parents.AlertSettingsActivity"
             android:label="Alertas automáticos"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.SupportNetworkActivity"
+            android:label="Rede de Apoio"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>
