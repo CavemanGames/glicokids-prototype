@@ -10,6 +10,7 @@ import com.glicokids.prototype.data.model.Food
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.data.model.MealEntry
 import com.glicokids.prototype.data.model.MedalRecord
+import com.glicokids.prototype.data.model.ReceivedMessage
 import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -247,6 +248,17 @@ class GlicoKidsDbHelper @Inject constructor(
         put("created_at", createdAt)
     }
 
+    /** Module 6 — b23: stores one inbound message. [SmsReceiver] is the only caller. */
+    fun insertReceivedMessage(message: ReceivedMessage): Long =
+        writableDatabase.insert("received_messages", null, message.toContentValues())
+
+    private fun ReceivedMessage.toContentValues() = ContentValues().apply {
+        put("sender_phone", senderPhone)
+        if (contactId != null) put("contact_id", contactId) else putNull("contact_id")
+        put("body", body)
+        put("received_at", receivedAt)
+    }
+
     /**
      * Module 6 — guarantees a primary contact row exists even though the guardian
      * onboarding screens (b3/f3) are not implemented yet (Phase 4 of the roadmap).
@@ -378,6 +390,34 @@ class GlicoKidsDbHelper @Inject constructor(
         val digitsOnly = phone.filter { it.isDigit() }
         return if (phone.trim().startsWith("+55")) digitsOnly.removePrefix("55") else digitsOnly
     }
+
+    /** Every received message, most recent first — b23's inbox. */
+    fun getReceivedMessages(): List<ReceivedMessage> {
+        val out = mutableListOf<ReceivedMessage>()
+        readableDatabase.rawQuery(
+            "SELECT id, sender_phone, contact_id, body, received_at FROM received_messages " +
+                "ORDER BY received_at DESC",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += ReceivedMessage(
+                    id = c.getLong(0),
+                    senderPhone = c.getString(1),
+                    contactId = if (c.isNull(2)) null else c.getLong(2),
+                    body = c.getString(3),
+                    receivedAt = c.getLong(4)
+                )
+            }
+        }
+        return out
+    }
+
+    /** Backs the count chip on b19's "Transmissões recebidas" row. */
+    fun getReceivedMessageCount(): Int =
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM received_messages", null).use { c ->
+            c.moveToFirst()
+            c.getInt(0)
+        }
 
     private fun queryContacts(clause: String, args: Array<String>?): List<Contact> {
         val out = mutableListOf<Contact>()

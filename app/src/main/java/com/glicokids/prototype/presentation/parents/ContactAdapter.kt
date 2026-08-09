@@ -6,8 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
-import androidx.core.content.ContextCompat
-import com.glicokids.prototype.R
 import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.databinding.ItemContactBinding
 
@@ -45,8 +43,9 @@ class ContactAdapter(
                 .also { it.root.tag = it }
         val contact = contacts[position]
 
-        binding.tvContactInitials.text = initialsFor(contact.name)
-        binding.tvContactInitials.backgroundTintList = ColorStateList.valueOf(colorForPosition(position))
+        binding.tvContactInitials.text = InitialsBadge.initialsFor(contact.name)
+        binding.tvContactInitials.backgroundTintList =
+            ColorStateList.valueOf(InitialsBadge.colorForPosition(context, position))
         binding.tvContactInitials.contentDescription = "Iniciais de ${contact.name}"
 
         binding.tvContactName.text = contact.name
@@ -78,22 +77,4 @@ class ContactAdapter(
 
     private fun channelsLabel(contact: Contact): String =
         if (contact.email.isNullOrBlank()) contact.phone else "${contact.phone} · ${contact.email}"
-
-    private fun initialsFor(name: String): String {
-        val parts = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        return when {
-            parts.isEmpty() -> "?"
-            parts.size == 1 -> parts.first().take(2).uppercase()
-            else -> "${parts.first().first()}${parts.last().first()}".uppercase()
-        }
-    }
-
-    private fun colorForPosition(position: Int): Int =
-        ContextCompat.getColor(context, INITIALS_COLORS[position % INITIALS_COLORS.size])
-
-    companion object {
-        private val INITIALS_COLORS = listOf(
-            R.color.primary, R.color.primary_dark, R.color.gold_dark, R.color.teal_dark
-        )
-    }
 }

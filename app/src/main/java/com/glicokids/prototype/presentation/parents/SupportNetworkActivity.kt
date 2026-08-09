@@ -2,25 +2,20 @@ package com.glicokids.prototype.presentation.parents
 
 import android.Manifest
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.ContextMenu
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.PopupMenu
 import com.glicokids.prototype.R
 import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.databinding.ActivitySupportNetworkBinding
-import com.glicokids.prototype.databinding.DialogContactBinding
 import com.glicokids.prototype.domain.repository.SmsGateway
 import com.glicokids.prototype.util.UIHelper
-import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -84,7 +79,7 @@ class SupportNetworkActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.btnBack.setOnClickListener { finish() }
-        binding.btnAddContact.setOnClickListener { showContactDialog(null) }
+        binding.btnAddContact.setOnClickListener { ContactDialog.show(this, viewModel, existing = null) }
 
         binding.rowAlertSettings.setOnClickListener {
             UIHelper.navigateTo(this, AlertSettingsActivity::class.java)
@@ -95,12 +90,9 @@ class SupportNetworkActivity : AppCompatActivity() {
             viewModel.shareSummary()
         }
 
-        // b23 (the inbox screen) does not exist yet — left honestly inert instead of
-        // pointing the tap at a destination that is not there.
-        binding.rowReceivedMessages.isEnabled = false
-        binding.rowReceivedMessages.alpha = 0.5f
-        binding.rowReceivedMessages.contentDescription = "Transmissões recebidas, disponível em breve"
-        binding.tvReceivedCount.text = "em breve"
+        binding.rowReceivedMessages.setOnClickListener {
+            UIHelper.navigateTo(this, ReceivedMessagesActivity::class.java)
+        }
     }
 
     private fun observeViewModel() {
@@ -117,6 +109,10 @@ class SupportNetworkActivity : AppCompatActivity() {
                 val sent = UIHelper.sendSmsViaMessagingApp(this, "", text)
                 if (!sent) UIHelper.showToast(this, "Nenhum aplicativo de SMS encontrado no aparelho")
             }
+        }
+
+        viewModel.receivedMessageCount.observe(this) { count ->
+            binding.tvReceivedCount.text = "$count ›"
         }
     }
 
@@ -173,7 +169,7 @@ class SupportNetworkActivity : AppCompatActivity() {
     private fun handleContactAction(itemId: Int, contact: Contact): Boolean {
         return when (itemId) {
             MENU_EDIT -> {
-                showContactDialog(contact)
+                ContactDialog.show(this, viewModel, existing = contact)
                 true
             }
             MENU_TEST -> {
@@ -204,112 +200,6 @@ class SupportNetworkActivity : AppCompatActivity() {
             .setNegativeButton("Cancelar", null)
             .setPositiveButton("Remover") { _, _ -> viewModel.removeContact(contact) }
             .show()
-    }
-
-    // ------------------------------------------------------------------
-    // b20 — the one add/edit dialog, shared by "+ Adicionar pessoa" and "Editar"
-    // ------------------------------------------------------------------
-
-    private fun showContactDialog(existing: Contact?) {
-        val dialogBinding = DialogContactBinding.inflate(layoutInflater)
-
-        if (existing != null) {
-            dialogBinding.etContactName.setText(existing.name)
-            dialogBinding.etContactPhone.setText(existing.phone)
-            dialogBinding.etContactEmail.setText(existing.email.orEmpty())
-            dialogBinding.swDlgReceivesAlert.isChecked = existing.receivesAlert
-            dialogBinding.swDlgReceivesReport.isChecked = existing.receivesReport
-            dialogBinding.cgRelationship.check(chipIdFor(dialogBinding, existing.relationship))
-        } else {
-            dialogBinding.cgRelationship.check(dialogBinding.chipMother.id)
-        }
-
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(if (existing == null) "Adicionar pessoa" else "Editar pessoa")
-            .setView(dialogBinding.root)
-            .setNegativeButton("Cancelar", null)
-            .setPositiveButton("Salvar", null)
-            .create()
-
-        dialog.show()
-        val saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-
-        fun refreshSaveEnabled() {
-            saveButton.isEnabled = isFormValid(dialogBinding)
-        }
-
-        val watcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                clearDialogErrors(dialogBinding)
-                refreshSaveEnabled()
-            }
-        }
-        dialogBinding.etContactName.addTextChangedListener(watcher)
-        dialogBinding.etContactPhone.addTextChangedListener(watcher)
-        dialogBinding.etContactEmail.addTextChangedListener(watcher)
-        dialogBinding.swDlgReceivesReport.setOnCheckedChangeListener { _, _ -> refreshSaveEnabled() }
-
-        refreshSaveEnabled()
-
-        saveButton.setOnClickListener {
-            val saved = viewModel.saveContact(
-                existing = existing,
-                name = dialogBinding.etContactName.text.toString(),
-                relationship = selectedRelationshipLabel(dialogBinding),
-                phone = dialogBinding.etContactPhone.text.toString(),
-                email = dialogBinding.etContactEmail.text.toString(),
-                receivesAlert = dialogBinding.swDlgReceivesAlert.isChecked,
-                receivesReport = dialogBinding.swDlgReceivesReport.isChecked
-            )
-            if (saved) {
-                dialog.dismiss()
-            } else {
-                applyDialogError(dialogBinding, viewModel.validationError.value)
-            }
-        }
-    }
-
-    /**
-     * Delegates to [SupportNetworkViewModel.validateContact] — the one authority for the
-     * rules — only to drive the Save button's enabled state in real time as the user types.
-     */
-    private fun isFormValid(b: DialogContactBinding): Boolean {
-        return viewModel.validateContact(
-            name = b.etContactName.text?.toString().orEmpty(),
-            phone = b.etContactPhone.text?.toString().orEmpty(),
-            email = b.etContactEmail.text?.toString(),
-            receivesReport = b.swDlgReceivesReport.isChecked
-        ) == null
-    }
-
-    private fun clearDialogErrors(b: DialogContactBinding) {
-        b.tilContactName.error = null
-        b.tilContactPhone.error = null
-        b.tilContactEmail.error = null
-    }
-
-    private fun applyDialogError(b: DialogContactBinding, error: ContactValidationError?) {
-        error ?: return
-        when (error.field) {
-            ContactValidationField.NAME -> b.tilContactName.error = error.message
-            ContactValidationField.PHONE -> b.tilContactPhone.error = error.message
-            ContactValidationField.EMAIL -> b.tilContactEmail.error = error.message
-        }
-    }
-
-    private fun selectedRelationshipLabel(b: DialogContactBinding): String {
-        val chip = b.cgRelationship.findViewById<Chip>(b.cgRelationship.checkedChipId)
-        return chip?.text?.toString() ?: b.chipOther.text.toString()
-    }
-
-    private fun chipIdFor(b: DialogContactBinding, relationship: String): Int {
-        val chips = listOf(
-            b.chipMother, b.chipFather, b.chipGrandmother, b.chipGrandfather,
-            b.chipUncle, b.chipCaregiver, b.chipDoctor, b.chipSchool, b.chipOther
-        )
-        return chips.firstOrNull { it.text == relationship }?.id ?: b.chipOther.id
     }
 
     companion object {
