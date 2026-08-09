@@ -10,7 +10,9 @@ import javax.inject.Singleton
 /**
  * Module 5 — requirements 1 and 2: plain `SharedPreferences`, shared across Activities.
  *
- * Owns the non-sensitive settings and clinical parameters (handoff §8.1).
+ * Owns the non-sensitive settings and clinical parameters: child profile,
+ * glycemia target range, insulin sensitivity factor, insulin-to-carb ratio,
+ * dose lock and alert mode/throttle.
  * `parent_pin` does NOT live here: it is the only sensitive value and stays in
  * [EncryptedStorage] (EncryptedSharedPreferences).
  *
@@ -156,7 +158,11 @@ class AppPreferences @Inject constructor(
         const val DEFAULT_ALERT_ON_RECOVERY = true
         const val DEFAULT_LAST_ALERT_AT = 0L
 
-        /** Accepted bounds when editing the target range (handoff §8). */
+        /**
+         * Absolute bounds allowed when editing the target range: wide enough to
+         * cover any medically prescribed range, tight enough to reject a value
+         * that could not plausibly be a blood glucose target.
+         */
         const val RANGE_ABSOLUTE_MIN = 40
         const val RANGE_ABSOLUTE_MAX = 300
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!-- b19 · linha da rede de apoio. Alvos de toque: todos com 48dp (regra §10 do handoff-android.md). -->
+<!-- b19 · linha da rede de apoio. Alvos de toque: todos com 48dp (tamanho mínimo de acessibilidade para toque). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

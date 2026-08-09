@@ -22,7 +22,8 @@ import javax.inject.Singleton
  * Module 5 — requirement 7: local database through a hand-written [SQLiteOpenHelper].
  *
  * Room is FORBIDDEN in this project (academic requirement) and its dependencies
- * were removed from the build. Schema follows handoff §8.2.
+ * were removed from the build. Every table below is created and migrated by hand,
+ * with a single well-defined owner for each one — no ORM-generated schema.
  *
  * Every call here touches disk: use it off the main thread.
  */

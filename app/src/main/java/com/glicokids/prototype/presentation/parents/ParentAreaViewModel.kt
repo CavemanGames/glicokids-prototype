@@ -140,7 +140,7 @@ class ParentAreaViewModel @Inject constructor(
     // Parameter editing (b18 — always through a validated dialog, never inline)
     // ------------------------------------------------------------------
 
-    /** Validation from handoff §8: 40 ≤ min < max ≤ 300. */
+    /** Rejects the new range unless it fits inside the accepted absolute bounds and min < max. */
     fun updateTargetRange(min: Int, max: Int): Boolean {
         if (min < AppPreferences.RANGE_ABSOLUTE_MIN ||
             max > AppPreferences.RANGE_ABSOLUTE_MAX ||

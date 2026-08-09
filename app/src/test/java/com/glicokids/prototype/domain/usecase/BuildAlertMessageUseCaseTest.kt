@@ -9,9 +9,8 @@ import java.util.Locale
 
 /**
  * Module 6 — the pt-BR text sent to the support network. The use case receives only
- * primitives (see `handoff-android.md` §9.5): the partial name is built elsewhere
- * (`ReportStorage.anonymizedName`, LGPD rule already covered by ReportStorageTest) and
- * simply passed through here.
+ * primitives: the partial name is built elsewhere (`ReportStorage.anonymizedName`,
+ * LGPD rule already covered by ReportStorageTest) and simply passed through here.
  */
 class BuildAlertMessageUseCaseTest {
 

@@ -6,7 +6,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * Module 6 — assembles the pt-BR alert text sent to the support network (handoff §9.5).
+ * Module 6 — assembles the pt-BR alert text sent to the support network.
  * Only primitives in the signature: the caller already anonymized the child's name
  * (`ReportStorage.anonymizedName`, same LGPD rule as the 7-day report) before calling this.
  */

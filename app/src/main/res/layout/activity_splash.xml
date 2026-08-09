@@ -25,7 +25,7 @@
         app:layout_constraintTop_toBottomOf="@id/ivLogo"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- b1 · 3 pontos de carregamento (handoff-android.md §7). O código anima a opacidade em
+    <!-- b1 · 3 pontos de carregamento. O código anima a opacidade em
          sequência; estáticos, continuam fiéis ao desenho. -->
     <LinearLayout
         android:id="@+id/llLoadingDots"
