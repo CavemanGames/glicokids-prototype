@@ -30,36 +30,42 @@ object NotificationHelper {
         manager.createNotificationChannel(channel)
     }
 
-    fun notifyMessageReceived(context: Context, notificationId: Int, title: String, body: String) {
+    /**
+     * Posts the "message received" notification (b23) on [CHANNEL_ID], tapping it opens
+     * [destination]. The screen to open is not this object's call — whichever caller
+     * receives the message (SMS, in-app event) is the one who knows where the user should
+     * land, so it passes the target in the same way [UIHelper.navigateTo] does.
+     */
+    fun notifyMessageReceived(
+        context: Context,
+        destination: Class<*>,
+        notificationId: Int,
+        title: String,
+        body: String
+    ) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_signal)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
-            .setContentIntent(receivedMessagesPendingIntent(context, notificationId))
+            .setContentIntent(destinationPendingIntent(context, destination, notificationId))
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(notificationId, notification)
     }
 
-    /**
-     * `ReceivedMessagesActivity` (b23) does not exist yet, so it cannot be referenced as a
-     * Kotlin class here without breaking today's build. Targeting it by its fully-qualified
-     * name through [Intent.setClassName] compiles regardless — the Intent is only resolved
-     * at launch time, not at compile time — so this line needs no change the day that
-     * Activity is added under this exact package; it just starts resolving.
-     */
-    private fun receivedMessagesPendingIntent(context: Context, requestCode: Int): PendingIntent {
-        val openMessages = Intent().setClassName(context.packageName, RECEIVED_MESSAGES_ACTIVITY)
+    private fun destinationPendingIntent(
+        context: Context,
+        destination: Class<*>,
+        requestCode: Int
+    ): PendingIntent {
+        val openDestination = Intent(context, destination)
         return PendingIntent.getActivity(
             context,
             requestCode,
-            openMessages,
+            openDestination,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
-
-    private const val RECEIVED_MESSAGES_ACTIVITY =
-        "com.glicokids.prototype.presentation.parents.ReceivedMessagesActivity"
 }
