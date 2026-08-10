@@ -5,6 +5,14 @@
         <item name="android:statusBarColor">@color/night_deep</item>
         <item name="android:windowBackground">@color/night</item>
 
+        <!-- Pinned to the project palette on purpose: without these, Android 12+ resolves
+             colorSurface/colorOnSurface from dynamic (Material You) color instead, which leaked
+             wallpaper-derived tones into unstyled Material components (b16 toggle buttons).
+             Every MaterialCardView in the app already declares its own explicit
+             app:cardBackgroundColor, so this pin is safe for the dark kids screens too. -->
+        <item name="colorSurface">@color/lavender_bg</item>
+        <item name="colorOnSurface">@color/ink</item>
+
         <!-- b8 · O popup arredondado do menu ⋮ vem DAQUI, nunca de layout customizado.
              Sem estes 3 itens o menu volta a ser um bloco branco de cantos retos. -->
         <item name="popupMenuStyle">@style/Widget.GlicoKids.PopupMenu</item>
