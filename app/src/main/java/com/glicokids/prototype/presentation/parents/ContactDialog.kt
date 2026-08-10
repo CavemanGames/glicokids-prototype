@@ -57,11 +57,38 @@ object ContactDialog {
             saveButton.isEnabled = isFormValid(viewModel, dialogBinding)
         }
 
+        // Defect A (dialog path) — swDlgReceivesReport used to only feed refreshSaveEnabled,
+        // so it could stay checked+enabled with an empty e-mail field (Save just never fired).
+        // Disabling it here, driven by the same canReceiveReport() the row-switch guard uses,
+        // closes that path too; a switch that becomes disabled while checked is turned off so
+        // the on-screen state never lies about what would be persisted.
+        fun updateReportSwitchEnabled() {
+            val canReceive = viewModel.canReceiveReport(dialogBinding.etContactEmail.text?.toString())
+            dialogBinding.swDlgReceivesReport.isEnabled = canReceive
+            if (!canReceive && dialogBinding.swDlgReceivesReport.isChecked) {
+                dialogBinding.swDlgReceivesReport.isChecked = false
+            }
+        }
+
         val watcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 clearDialogErrors(dialogBinding)
+                // Defect B — validateContact() already computes the right field+message;
+                // it just used to be called only from the Save click, which never fired while
+                // the button stayed disabled. Calling it on every keystroke turns the dead
+                // applyDialogError() path into live inline validation.
+                applyDialogError(
+                    dialogBinding,
+                    viewModel.validateContact(
+                        name = dialogBinding.etContactName.text?.toString().orEmpty(),
+                        phone = dialogBinding.etContactPhone.text?.toString().orEmpty(),
+                        email = dialogBinding.etContactEmail.text?.toString(),
+                        receivesReport = dialogBinding.swDlgReceivesReport.isChecked
+                    )
+                )
+                updateReportSwitchEnabled()
                 refreshSaveEnabled()
             }
         }
@@ -70,6 +97,9 @@ object ContactDialog {
         dialogBinding.etContactEmail.addTextChangedListener(watcher)
         dialogBinding.swDlgReceivesReport.setOnCheckedChangeListener { _, _ -> refreshSaveEnabled() }
 
+        // Corrects a legacy invalid state on open too (a contact saved before this fix could
+        // already have receivesReport=true with no e-mail).
+        updateReportSwitchEnabled()
         refreshSaveEnabled()
 
         saveButton.setOnClickListener {
