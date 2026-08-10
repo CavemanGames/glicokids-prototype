@@ -9,7 +9,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * The three persistence layers from handoff §8.1:
+ * The three persistence layers, split by how sensitive and how long-lived the data is:
  *  - [EncryptedStorage] (EncryptedSharedPreferences) — `parent_pin` only;
  *  - `AppPreferences` (plain SharedPreferences) — settings and clinical parameters;
  *  - `GlicoKidsDbHelper` (SQLiteOpenHelper) — historical series.

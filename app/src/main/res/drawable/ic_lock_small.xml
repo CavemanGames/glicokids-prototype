@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Cadeado da pill "Área dos Pais" (b7). Substitui o emoji 🔒: emoji dentro de
-     botão renderiza torto entre fabricantes (regra 10 do handoff). -->
+     botão renderiza torto entre fabricantes. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="16dp" android:height="16dp"
     android:viewportWidth="24" android:viewportHeight="24">

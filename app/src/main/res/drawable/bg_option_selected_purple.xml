@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b21 · variante roxa do selecionado (usada no bloco de hiperglicemia quando o modo é "Desativado"). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F7F4FE"/>
+    <stroke android:width="3dp" android:color="#7C4DFF"/>
+    <corners android:radius="14dp"/>
+</shape>

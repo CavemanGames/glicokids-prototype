@@ -25,7 +25,7 @@
     <color name="lavender_bg">#EDE7F6</color>
     <color name="ink">#2A1E5C</color>
     <color name="text_muted_dark">#B3A5F5</color>
-    <color name="text_muted_light">#8A80A8</color>
+    <color name="text_muted_light">#67607E</color>
     <color name="danger">#C62828</color>
 
     <!-- Helpers -->

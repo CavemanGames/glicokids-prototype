@@ -98,6 +98,12 @@ class ParentAreaFragment : Fragment() {
         binding.cvReport.setOnClickListener { showReport() }
         binding.btnExportReport.setOnClickListener { exportReport() }
         binding.btnExportExternal.setOnClickListener { confirmExternalCopy() }
+        binding.btnEmailReport.setOnClickListener { emailReport() }
+
+        // b19 — protected by PIN simply by living inside the Parent Area.
+        binding.cvSupportNetwork.setOnClickListener {
+            UIHelper.navigateTo(requireContext(), SupportNetworkActivity::class.java)
+        }
     }
 
     private fun observeViewModel() {
@@ -116,6 +122,10 @@ class ParentAreaFragment : Fragment() {
         }
 
         viewModel.meals.observe(viewLifecycleOwner) { mealAdapter.submit(it) }
+
+        viewModel.supportNetworkSummary.observe(viewLifecycleOwner) { text ->
+            binding.tvSupportNetworkSummary.text = text
+        }
 
         viewModel.lastReportAt.observe(viewLifecycleOwner) { at ->
             binding.tvLastReport.text = if (at <= 0L) {
@@ -204,6 +214,35 @@ class ParentAreaFragment : Fragment() {
                 .setView(scroll)
                 .setPositiveButton("Fechar", null)
                 .show()
+        }
+    }
+
+    /**
+     * Requirement 4 — hands the same 7-day report off to an e-mail client via
+     * [UIHelper.sendEmailWithBody]. Recipients come from [ParentAreaViewModel.getReportRecipients]
+     * (contacts with `receivesReport` on and an e-mail); the content is the same
+     * report [showReport] already reads through [reportStorage][ParentAreaViewModel.readReport].
+     */
+    private fun emailReport() {
+        val recipients = viewModel.getReportRecipients()
+        if (recipients.isEmpty()) {
+            UIHelper.showToast(requireContext(), "Nenhum contato configurado para receber o relatório por e-mail")
+            return
+        }
+
+        viewModel.readReport { content ->
+            if (content == null) {
+                UIHelper.showToast(requireContext(), "Gere o relatório primeiro")
+                return@readReport
+            }
+
+            val sent = UIHelper.sendEmailWithBody(
+                requireContext(),
+                recipients.toTypedArray(),
+                "Relatório GlicoKids · últimos 7 dias",
+                content
+            )
+            if (!sent) UIHelper.showToast(requireContext(), "Nenhum aplicativo de e-mail encontrado no aparelho")
         }
     }
 

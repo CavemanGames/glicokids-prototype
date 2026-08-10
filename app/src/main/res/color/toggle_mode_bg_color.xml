@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- b16 · tgInputMode (btnModeManual/btnModeSensor) background tint per checked state.
+     Pairs with toggle_mode_text_color.xml. Contrast is a ratio of two colors, so the
+     background must be pinned too or the checked state keeps leaking dynamic color even
+     with a fixed text color. Checked state must be @color/primary (#7C4DFF), per the b16
+     toggle spec (GlicoKids Design.dc.html:464) — not primary_dark, which is not part of
+     that spec. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/primary" android:state_checked="true"/>
+    <item android:color="@android:color/white"/>
+</selector>

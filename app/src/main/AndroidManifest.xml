@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -11,6 +11,24 @@
          getExternalFilesDir(), which requires no permission. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- Module 6 · communication: SEND_SMS/RECEIVE_SMS back the SMS gateway and receiver,
+         POST_NOTIFICATIONS is required on targetSdk 34 or the incoming-message notification
+         is silently dropped. The activities and the SmsReceiver these permissions serve are
+         declared later, together with the classes that implement them. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
+         entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent
+         return empty even when a camera app is installed, because the OS hides other packages
+         from us by default (`.artifacts/SPEC-camera-captura-real.md` §3b/§7). -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".GlicoKidsApplication"
@@ -68,6 +86,33 @@
             android:name=".presentation.kids.HelpActivity"
             android:label="Central de Ajuda"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.AlertSettingsActivity"
+            android:label="Alertas automáticos"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.SupportNetworkActivity"
+            android:label="Rede de Apoio"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.kids.GlucoseAlertActivity"
+            android:label="Alerta de glicemia"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.ReceivedMessagesActivity"
+            android:label="Transmissões recebidas"
+            android:screenOrientation="portrait" />
+
+        <receiver android:name=".data.sms.SmsReceiver" android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
