@@ -185,6 +185,17 @@ confirmation. Both directions started working the moment chat features were disa
 messaging app. This is a property of the transport, not of this app: any application that depends
 on SMS behaves the same way.
 
+**Outgoing SMS was refused by the telephony layer on the test device.** With RCS disabled and
+`SEND_SMS` granted, the send still failed, and the result intent now records why:
+`RESULT_ERROR_GENERIC_FAILURE`, with no carrier-specific extended code. That rules out the
+diagnosable causes — it is not `NO_SERVICE`, `RADIO_OFF`, `NULL_PDU` or `LIMIT_EXCEEDED`. What
+remains is a generic rejection by the telephony stack, consistent with a carrier or vendor policy
+that treats `SmsManager` differently for an app that is not the device's default messaging app;
+the same lines send normally from the system messaging app. The failure is on the send path, not
+in the app: the call was accepted, the result intent came back, and the reason came from
+telephony. The alert screen reports exactly that — it does not claim the message was sent, does
+not start the cooldown, and does not offer to resend something that never left.
+
 ## 7. Quality Assurance & DevOps
 - **Gitflow Strategy**: Professional branch structure (`main`, `staging`, `develop`).
 - **CI/CD Pipeline**: GitHub Actions configured for automated build validation and JUnit testing on every Pull Request.

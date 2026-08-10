@@ -69,6 +69,23 @@ class AndroidSmsGateway @Inject constructor(
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(receiverContext: Context, intent: Intent) {
                     runCatching { context.unregisterReceiver(this) }
+                    // A failed send throws no exception — the carrier's reason only shows
+                    // up here, in the sentIntent resultCode. Without logging it, every
+                    // failure (no SMS plan, carrier rejection, radio off, no service...)
+                    // looks identical and the user only ever sees "could not confirm send".
+                    if (resultCode != Activity.RESULT_OK) {
+                        // The framework delivers the carrier's own error code under this
+                        // key. There is no public constant for it on SmsManager, so the
+                        // literal is the only way to read it, and it is absent on most
+                        // devices — hence the sentinel default rather than a plain -1.
+                        val extraErrorCode = intent.getIntExtra("errorCode", Int.MIN_VALUE)
+                        val extraSuffix = if (extraErrorCode != Int.MIN_VALUE) {
+                            ", extraErrorCode=$extraErrorCode"
+                        } else {
+                            ""
+                        }
+                        Log.w(TAG, "SMS send failed: resultCode=${describeResultCode(resultCode)}$extraSuffix")
+                    }
                     if (continuation.isActive) {
                         continuation.resume(resultCode == Activity.RESULT_OK)
                     }
@@ -109,6 +126,18 @@ class AndroidSmsGateway @Inject constructor(
                 }
             }
         }
+
+    // Maps the sentIntent resultCode to its constant name, for logging. SmsManager only
+    // exposes these as raw ints, so without this translation every log line would read
+    // "resultCode=2" with no indication of what actually went wrong.
+    private fun describeResultCode(resultCode: Int): String = when (resultCode) {
+        SmsManager.RESULT_ERROR_GENERIC_FAILURE -> "RESULT_ERROR_GENERIC_FAILURE"
+        SmsManager.RESULT_ERROR_NO_SERVICE -> "RESULT_ERROR_NO_SERVICE"
+        SmsManager.RESULT_ERROR_NULL_PDU -> "RESULT_ERROR_NULL_PDU"
+        SmsManager.RESULT_ERROR_RADIO_OFF -> "RESULT_ERROR_RADIO_OFF"
+        SmsManager.RESULT_ERROR_LIMIT_EXCEEDED -> "RESULT_ERROR_LIMIT_EXCEEDED"
+        else -> "UNKNOWN($resultCode)"
+    }
 
     companion object {
         private const val TAG = "GlicoKids_Sms"
