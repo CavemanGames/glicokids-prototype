@@ -4,6 +4,7 @@
      card de glicemia GLASS (nunca teal sólido; elevation 0 evita tonal overlay), chip "estável" teal sólido legível. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:background="@drawable/bg_night_stars"
     android:padding="20dp">
@@ -97,7 +98,7 @@
             <TextView
                 android:id="@+id/tvGlucoseValue"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="112" android:textColor="@color/teal_glow"
+                tools:text="112" android:textColor="@color/teal_glow"
                 android:textSize="32sp" android:textStyle="bold"
                 app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent"/>
             <TextView
@@ -108,10 +109,14 @@
                 app:layout_constraintTop_toTopOf="@id/tvGlucoseValue"
                 app:layout_constraintStart_toEndOf="@id/tvGlucoseValue"/>
             <TextView
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:id="@+id/tvGlucoseCaption"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:maxLines="2" android:ellipsize="end"
                 android:text="Glico está orbitando feliz" android:textColor="@color/text_muted_dark" android:textSize="12sp"
                 app:layout_constraintTop_toBottomOf="@id/tvGlucoseStatus"
-                app:layout_constraintStart_toStartOf="@id/tvGlucoseStatus"/>
+                app:layout_constraintStart_toStartOf="@id/tvGlucoseStatus"
+                app:layout_constraintEnd_toStartOf="@id/tvTrend"/>
             <TextView
                 android:id="@+id/tvTrend"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"

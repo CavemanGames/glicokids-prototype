@@ -13,12 +13,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.glicokids.prototype.R
+import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.databinding.FragmentKidsDashboardBinding
+import com.glicokids.prototype.domain.usecase.DashboardGlucoseDisplay
+import com.glicokids.prototype.domain.usecase.GetDashboardGlucoseDisplayUseCase
+import com.glicokids.prototype.domain.usecase.GetGlucoseTrendUseCase
+import com.glicokids.prototype.domain.usecase.GetMedalsCountLabelUseCase
+import com.glicokids.prototype.domain.usecase.GlucoseTrendDisplay
 import com.glicokids.prototype.presentation.parents.ParentSecurityActivity
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -29,6 +39,18 @@ class KidsDashboardFragment : Fragment() {
 
     @Inject
     lateinit var prefs: com.glicokids.prototype.data.local.AppPreferences
+
+    @Inject
+    lateinit var dbHelper: GlicoKidsDbHelper
+
+    @Inject
+    lateinit var getDashboardGlucoseDisplayUseCase: GetDashboardGlucoseDisplayUseCase
+
+    @Inject
+    lateinit var getGlucoseTrendUseCase: GetGlucoseTrendUseCase
+
+    @Inject
+    lateinit var getMedalsCountLabelUseCase: GetMedalsCountLabelUseCase
 
     private val avatars = intArrayOf(
         R.drawable.ic_avatar_1, R.drawable.ic_avatar_2, R.drawable.ic_avatar_3,
@@ -138,24 +160,83 @@ class KidsDashboardFragment : Fragment() {
         binding.pbXp.progress = prefs.xp % 100
         binding.tvLevel.text = "Nv ${prefs.xp / 100 + 1}"
         updateGlucoseDisplay()
+        updateMedalsCount()
     }
 
+    /**
+     * Module 6 — field defect: this card used to show a hardcoded "112 mg/dL · Na meta!" no
+     * matter what the child had logged. The last reading now comes from
+     * [GlicoKidsDbHelper.getLastGlucoseReading] off the main thread, and the whole decision of
+     * what to show is [GetDashboardGlucoseDisplayUseCase]'s alone — never recompute the status
+     * here. While the query is still running (first [onResume] of the process) the card shows
+     * the same empty state as "no reading yet" instead of any number, so there is never a
+     * moment with a stale or made-up value on screen.
+     */
     private fun updateGlucoseDisplay() {
-        val currentGlucose = 112 // the "live" reading is still simulated in the prototype
-        val status = UIHelper.glucoseStatus(currentGlucose, prefs.rangeMin, prefs.rangeMax)
-        val color = UIHelper.getStatusColor(status)
+        renderGlucoseDisplay(
+            getDashboardGlucoseDisplayUseCase.execute(lastReading = null, rangeMin = prefs.rangeMin, rangeMax = prefs.rangeMax)
+        )
+        renderTrend(GlucoseTrendDisplay(label = "", hasEnoughData = false))
 
-        binding.cardGlucose.strokeColor = color
-        binding.tvGlucoseStatus.text = when (status) {
-            UIHelper.GlucoseStatus.NA_META -> "mg/dL · Na meta!"
-            UIHelper.GlucoseStatus.ATENCAO -> "mg/dL · Atenção"
-            UIHelper.GlucoseStatus.FORA_DA_META -> "mg/dL · Fora da meta"
+        viewLifecycleOwner.lifecycleScope.launch {
+            val (display, trend) = withContext(Dispatchers.IO) {
+                // Most recent first: index 0 is the current reading, index 1 the previous one.
+                val recentReadings = dbHelper.getRecentGlucoseReadings(2)
+                val lastReading = recentReadings.getOrNull(0)
+                val previousReading = recentReadings.getOrNull(1)
+                val display = getDashboardGlucoseDisplayUseCase.execute(lastReading, prefs.rangeMin, prefs.rangeMax)
+                val trend = getGlucoseTrendUseCase.execute(previousReading, lastReading)
+                display to trend
+            }
+            if (_binding != null) {
+                renderGlucoseDisplay(display)
+                renderTrend(trend)
+            }
         }
-        
+    }
+
+    private fun renderGlucoseDisplay(display: DashboardGlucoseDisplay) {
+        val color = display.status?.let { UIHelper.getStatusColor(it) }
+            ?: android.graphics.Color.parseColor("#8A8299") // neutral grey — no clinical status to show yet
+
+        binding.tvGlucoseValue.text = display.valueMgdl?.toString() ?: "--"
+        binding.tvGlucoseValue.setTextColor(display.valueColorArgb)
+        binding.cardGlucose.strokeColor = color
+        binding.tvGlucoseStatus.text = "mg/dL · ${display.statusLabel}"
+        binding.tvGlucoseCaption.text = display.secondaryMessage
+
         // Update trend chip background based on status
         binding.tvTrend.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
-        binding.tvTrend.setTextColor(if (status == UIHelper.GlucoseStatus.NA_META) 
+        binding.tvTrend.setTextColor(if (display.status == UIHelper.GlucoseStatus.NA_META)
             android.graphics.Color.parseColor("#221650") else android.graphics.Color.WHITE)
+    }
+
+    /**
+     * Module 6 — field defect: the trend chip was hardcoded to "→ estável" in the layout and
+     * never written to, so a brand-new install still claimed a stable trend with zero readings.
+     * With fewer than two readings there is nothing to compare, so the chip is hidden entirely
+     * instead of showing a label the app cannot honestly back up.
+     */
+    private fun renderTrend(trend: GlucoseTrendDisplay) {
+        binding.tvTrend.visibility = if (trend.hasEnoughData) View.VISIBLE else View.GONE
+        if (trend.hasEnoughData) {
+            binding.tvTrend.text = trend.label
+        }
+    }
+
+    /**
+     * Module 6 — field defect: the "★ Medalhas" button was hardcoded to "12 conquistadas" no
+     * matter how many medals the child had actually unlocked (the seed data starts at 4/6).
+     */
+    private fun updateMedalsCount() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val label = withContext(Dispatchers.IO) {
+                getMedalsCountLabelUseCase.execute(dbHelper.getMedals())
+            }
+            if (_binding != null) {
+                binding.btnMedals.text = "★ Medalhas\n$label"
+            }
+        }
     }
 
     override fun onDestroyView() {

@@ -2,6 +2,7 @@ package com.glicokids.prototype.data.local
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.glicokids.prototype.R
@@ -303,19 +304,42 @@ class GlicoKidsDbHelper @Inject constructor(
             arrayOf(sinceMillis.toString())
         ).use { c ->
             while (c.moveToNext()) {
-                out += GlucoseReading(
-                    id = c.getLong(0),
-                    valueMgdl = c.getInt(1),
-                    status = runCatching { UIHelper.GlucoseStatus.valueOf(c.getString(2)) }
-                        .getOrDefault(UIHelper.GlucoseStatus.NA_META),
-                    source = runCatching { ReadingSource.valueOf(c.getString(3)) }
-                        .getOrDefault(ReadingSource.MANUAL),
-                    createdAt = c.getLong(4)
-                )
+                out += mapGlucoseReading(c)
             }
         }
         return out
     }
+
+    /**
+     * Module 6 — field defect fix: the [limit] most recent readings, most recent first.
+     * Backs [com.glicokids.prototype.domain.usecase.GetGlucoseTrendUseCase], which needs the
+     * previous reading alongside [getLastGlucoseReading]'s current one to decide the home
+     * dashboard's trend chip. Same `ORDER BY ... DESC LIMIT ?` shape as [getRecentMeals].
+     */
+    fun getRecentGlucoseReadings(limit: Int): List<GlucoseReading> {
+        val out = mutableListOf<GlucoseReading>()
+        readableDatabase.rawQuery(
+            "SELECT id, value_mgdl, status, source, created_at FROM glucose_readings " +
+                "ORDER BY created_at DESC LIMIT ?",
+            arrayOf(limit.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += mapGlucoseReading(c)
+            }
+        }
+        return out
+    }
+
+    /** Shared by every reader of `glucose_readings` — same `SELECT id, value_mgdl, status, source, created_at` column order. */
+    private fun mapGlucoseReading(c: Cursor): GlucoseReading = GlucoseReading(
+        id = c.getLong(0),
+        valueMgdl = c.getInt(1),
+        status = runCatching { UIHelper.GlucoseStatus.valueOf(c.getString(2)) }
+            .getOrDefault(UIHelper.GlucoseStatus.NA_META),
+        source = runCatching { ReadingSource.valueOf(c.getString(3)) }
+            .getOrDefault(ReadingSource.MANUAL),
+        createdAt = c.getLong(4)
+    )
 
     fun getMealsSince(sinceMillis: Long): List<MealEntry> =
         queryMeals("WHERE created_at >= ? ORDER BY created_at ASC", arrayOf(sinceMillis.toString()))
@@ -451,15 +475,7 @@ class GlicoKidsDbHelper @Inject constructor(
             null
         ).use { c ->
             if (!c.moveToFirst()) return null
-            return GlucoseReading(
-                id = c.getLong(0),
-                valueMgdl = c.getInt(1),
-                status = runCatching { UIHelper.GlucoseStatus.valueOf(c.getString(2)) }
-                    .getOrDefault(UIHelper.GlucoseStatus.NA_META),
-                source = runCatching { ReadingSource.valueOf(c.getString(3)) }
-                    .getOrDefault(ReadingSource.MANUAL),
-                createdAt = c.getLong(4)
-            )
+            return mapGlucoseReading(c)
         }
     }
 
