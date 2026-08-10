@@ -173,8 +173,17 @@ Emulator note: the Android emulator does not deliver SMS to a real phone number 
 `sendTextMessage()` returning without an exception proves the call was made correctly (also
 covered by a `ShadowSmsManager` unit test), not that a message was received. Incoming SMS, by
 contrast, is testable end to end through the emulator's Extended Controls → Phone → Incoming
-SMS panel. That end-to-end check has not been carried out yet, and requirement 3 is therefore
-covered by unit tests over the receiver only.
+SMS panel. Requirement 3 was verified end to end on a physical device: a message sent from a
+second line was captured by the receiver, matched against the support network, and displayed with
+the sender's name and relationship rather than a bare number.
+
+**SMS requires RCS to be turned off.** Modern messaging apps default to RCS, which travels over
+data and is end-to-end encrypted. RCS messages do not fire the `SMS_RECEIVED` broadcast — the only
+one Android exposes to an app that is not the device's default messaging app — so an incoming
+message never reaches the receiver, and an outgoing `SmsManager` call can be rerouted without
+confirmation. Both directions started working the moment chat features were disabled in the
+messaging app. This is a property of the transport, not of this app: any application that depends
+on SMS behaves the same way.
 
 ## 7. Quality Assurance & DevOps
 - **Gitflow Strategy**: Professional branch structure (`main`, `staging`, `develop`).
