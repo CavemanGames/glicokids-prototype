@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -19,6 +19,16 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
+         entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent
+         return empty even when a camera app is installed, because the OS hides other packages
+         from us by default (`.artifacts/SPEC-camera-captura-real.md` §3b/§7). -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".GlicoKidsApplication"

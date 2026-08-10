@@ -1,9 +1,12 @@
 package com.glicokids.prototype.presentation.kids
 
+import android.Manifest
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
@@ -37,6 +40,24 @@ class NewMealActivity : AppCompatActivity() {
     @Inject lateinit var prefs: AppPreferences
     @Inject lateinit var dbHelper: GlicoKidsDbHelper
 
+    // Module 6 (Etapa D) — real camera capture (`.artifacts/SPEC-camera-captura-real.md` §3).
+    // Permission is requested unconditionally in onCreate, same pattern as SupportNetworkActivity
+    // (b19): a denial just falls back to a toast when the button is pressed, never a re-prompt.
+    private val requestCameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                Log.d(TAG, "NewMealActivity - permissão de câmera negada")
+            }
+        }
+
+    // TakePicturePreview() returns the Bitmap straight into the callback — no Uri, no
+    // FileProvider, no file. The thumbnail lives only in memory for as long as this screen is
+    // open (SPEC §4/§7): it is never written to photoPath, never survives process recreation.
+    private val takePictureLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+            onPhotoCaptured(bitmap)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "NewMealActivity - onCreate")
@@ -45,6 +66,8 @@ class NewMealActivity : AppCompatActivity() {
 
         val childName = intent.getStringExtra("CHILD_NAME") ?: prefs.childName
         Log.d(TAG, "NewMealActivity - Iniciando missão para: $childName")
+
+        requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
 
         setupListeners()
         observeViewModel()
@@ -55,12 +78,16 @@ class NewMealActivity : AppCompatActivity() {
 
         // b9 · The "estimado pela foto" chip only shows when the value came from the camera.
         binding.tvCarbsSource.visibility = View.GONE
+        applyPhotoState(hasPhoto = false)
 
         binding.btnTakePhoto.setOnClickListener {
-            Toast.makeText(this, "Simulando captura de foto...", Toast.LENGTH_SHORT).show()
-            carbsFromPhoto = true
-            binding.etCarbohydrates.setText(SIMULATED_CARBS)
-            binding.tvCarbsSource.visibility = View.VISIBLE
+            when {
+                !UIHelper.hasCameraPermission(this) ->
+                    UIHelper.showToast(this, "Permita o acesso à câmera para fotografar o prato.")
+                !UIHelper.hasCameraAppAvailable(this) ->
+                    UIHelper.showToast(this, "Nenhum aplicativo de câmera disponível.")
+                else -> takePictureLauncher.launch(null)
+            }
         }
 
         // Typing over the estimate drops the chip: the value no longer comes from the photo.
@@ -79,6 +106,36 @@ class NewMealActivity : AppCompatActivity() {
                 binding.etCurrentGlucose.text.toString()
             )
         }
+    }
+
+    /**
+     * Module 6 (Etapa D) — `TakePicturePreview()` callback. `bitmap == null` means the user
+     * cancelled or the camera app failed; nothing on screen changes and no toast fires (SPEC
+     * §7 — that is not an error to flag). `bitmap != null` shows the real thumbnail and only
+     * then runs the pre-existing simulated-carbs behaviour, unchanged.
+     */
+    private fun onPhotoCaptured(bitmap: Bitmap?) {
+        if (bitmap == null) return
+
+        binding.ivMealPhoto.setImageBitmap(bitmap)
+        applyPhotoState(hasPhoto = true)
+
+        Toast.makeText(this, "Simulando captura de foto...", Toast.LENGTH_SHORT).show()
+        carbsFromPhoto = true
+        binding.etCarbohydrates.setText(SIMULATED_CARBS)
+        binding.tvCarbsSource.visibility = View.VISIBLE
+    }
+
+    /** Applies [MealPhotoUiState] to `ivMealPhoto`/`ivPhotoPlaceholder` (SPEC §6). */
+    private fun applyPhotoState(hasPhoto: Boolean) {
+        val state = MealPhotoUiState.forPhoto(hasPhoto)
+        binding.ivPhotoPlaceholder.visibility = if (state.placeholderVisible) View.VISIBLE else View.GONE
+        binding.ivMealPhoto.importantForAccessibility = if (state.photoImportantForAccessibility) {
+            View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        } else {
+            View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        binding.ivMealPhoto.contentDescription = state.photoContentDescription
     }
 
     private fun observeViewModel() {
@@ -127,7 +184,7 @@ class NewMealActivity : AppCompatActivity() {
             carbsG = carbs,
             glucoseMgdl = glucose,
             bolusUi = dose,
-            photoPath = null, // the camera is simulated in the prototype
+            photoPath = null, // Module 6 (Etapa D): the photo is real but lives only in memory, never on disk
             createdAt = System.currentTimeMillis()
         )
 

@@ -70,13 +70,6 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.59.2")
     ksp("com.google.dagger:hilt-android-compiler:2.59.2")
 
-    // --- CameraX ---
-    val cameraxVersion = "1.3.0"
-    implementation("androidx.camera:camera-core:$cameraxVersion")
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-
     // --- Testing ---
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.5")
