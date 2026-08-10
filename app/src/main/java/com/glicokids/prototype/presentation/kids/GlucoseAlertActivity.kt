@@ -34,6 +34,20 @@ class GlucoseAlertActivity : AppCompatActivity() {
 
     private val timeFormat = SimpleDateFormat("HH:mm", Locale("pt", "BR"))
 
+    /** Achado 5 (Etapa D): [tvSentHeader][observeViewModel] used to claim "AUTOMATICAMENTE"
+     * even on the SUGGEST path, where the caregiver had just tapped a button. Set the moment
+     * [setupListeners] fires `confirmSend`, so the very next `sentTo`-carrying state can be
+     * told apart from one the ViewModel produced entirely on its own in [GlucoseAlertViewModel.start]. */
+    private var userTriggeredSend = false
+
+    /** Module 6 — field defect: [observeViewModel]'s LiveData replays the last state on every
+     * re-subscribe (e.g. a screen rotation), so a naive "sendFailedMessage != null -> toast"
+     * would toast again on every replay. Seeded in [observeViewModel] from whatever the
+     * ViewModel already holds ([GlucoseAlertViewModel.uiState] survives rotation even though
+     * this Activity does not), so a rotation right after a failed send re-observes the SAME
+     * value and never re-fires — only a genuine null-to-non-null transition toasts. */
+    private var lastSendFailedMessage: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGlucoseAlertBinding.inflate(layoutInflater)
@@ -79,18 +93,44 @@ class GlucoseAlertActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnImOk.setOnClickListener { finish() }
         binding.btnNotNow.setOnClickListener { finish() }
-        binding.btnSendNow.setOnClickListener { viewModel.confirmSend() }
-        binding.btnResend.setOnClickListener { viewModel.confirmSend() }
+        binding.btnSendNow.setOnClickListener {
+            userTriggeredSend = true
+            viewModel.confirmSend()
+        }
+        binding.btnResend.setOnClickListener {
+            userTriggeredSend = true
+            viewModel.confirmSend()
+        }
     }
 
     private fun observeViewModel() {
+        lastSendFailedMessage = viewModel.uiState.value?.sendFailedMessage
         viewModel.uiState.observe(this) { state ->
             binding.tvMessagePreview.text = state.messagePreview
             binding.llConfirmActions.visibility = if (state.showConfirmActions) View.VISIBLE else View.GONE
+            binding.tvThrottleNotice.visibility = if (state.showThrottleNotice) View.VISIBLE else View.GONE
             binding.tvThrottleNotice.text =
                 "próximo alerta só daqui a ${state.throttleMin} min · registrado no histórico"
+            binding.btnResend.visibility = if (state.showResendAction) View.VISIBLE else View.GONE
+            binding.btnImOk.text = state.imOkButtonText
 
+            // Field defect: confirmSend reaching nobody (e.g. SEND_SMS revoked) used to hide
+            // every button with no explanation. Toast only on a genuine null -> non-null
+            // transition — see [lastSendFailedMessage] for why a naive check would double-fire
+            // on rotation.
+            if (lastSendFailedMessage == null && state.sendFailedMessage != null) {
+                UIHelper.showToast(this, state.sendFailedMessage)
+            }
+            lastSendFailedMessage = state.sendFailedMessage
+
+            // Achado 5 (Etapa D): sentTo only ever carries recipients whose send actually
+            // confirmed (GlucoseAlertViewModel.send filters by the real gateway result), so
+            // whenever this card is visible the outcome shown below really is "enviado" —
+            // the header just has to stop claiming "automatically" for a send the caregiver
+            // triggered by hand.
             binding.llSentTo.visibility = if (state.sentTo.isNotEmpty()) View.VISIBLE else View.GONE
+            binding.tvSentHeader.text =
+                if (userTriggeredSend) "✓ SMS ENVIADO" else "✓ SMS ENVIADO AUTOMATICAMENTE"
             binding.llRecipients.removeAllViews()
             state.sentTo.forEach { recipient ->
                 val itemBinding = ItemAlertRecipientBinding.inflate(

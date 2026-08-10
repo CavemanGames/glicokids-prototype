@@ -82,7 +82,7 @@
             android:layout_marginTop="20dp" android:minHeight="58dp"
             android:insetTop="0dp" android:insetBottom="0dp"
             android:background="@drawable/bg_button_success_3d" app:backgroundTint="@null"
-            android:text="Estou bem — já tomei açúcar" android:textColor="#032B21"
+            tools:text="Estou bem — já tomei açúcar" android:textColor="#032B21"
             android:textSize="16sp" android:textStyle="bold" android:textAllCaps="false"
             android:contentDescription="Confirmar que a criança está bem e cancelar novos avisos"/>
 

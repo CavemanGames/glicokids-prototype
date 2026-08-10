@@ -14,6 +14,8 @@ import com.glicokids.prototype.domain.repository.SmsGateway
 import com.glicokids.prototype.domain.usecase.BuildAlertMessageUseCase
 import com.glicokids.prototype.domain.usecase.ShouldAutoAlertUseCase
 import com.google.common.truth.Truth.assertThat
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -166,11 +168,14 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
+        // Fixture correction for Etapa D GREEN: sentTo is now filtered by the real send
+        // result, and the default relaxed mock returns false for an unstubbed suspend call.
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
         val state = viewModel.uiState.getOrAwaitValue()
 
-        verify { smsGateway.sendTextMessage("11988776543", message) }
+        coVerify { smsGateway.sendTextMessage("11988776543", message) }
         assertThat(state.sentTo).hasSize(2)
         assertThat(state.showConfirmActions).isFalse()
         assertThat(state.messagePreview).isEqualTo(message)
@@ -182,6 +187,10 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
+        // Fixture correction for Etapa D GREEN: lastAlertAt is now only written once a send
+        // actually confirms, and the default relaxed mock returns false for an unstubbed
+        // suspend call — without this the throttle is never written and the verify below fails.
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
         viewModel.uiState.getOrAwaitValue()
@@ -199,14 +208,14 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
-        every { smsGateway.sendTextMessage("11900000001", any()) } returns false
-        every { smsGateway.sendTextMessage("11900000002", any()) } returns true
+        coEvery { smsGateway.sendTextMessage("11900000001", any()) } returns false
+        coEvery { smsGateway.sendTextMessage("11900000002", any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
         viewModel.uiState.getOrAwaitValue()
 
-        verify { smsGateway.sendTextMessage("11900000001", message) }
-        verify { smsGateway.sendTextMessage("11900000002", message) }
+        coVerify { smsGateway.sendTextMessage("11900000001", message) }
+        coVerify { smsGateway.sendTextMessage("11900000002", message) }
     }
 
     // --- ShouldAutoAlertUseCase returns false: SUGGEST vs OFF ---
@@ -227,7 +236,7 @@ class GlucoseAlertViewModelTest {
         assertThat(suggested.showConfirmActions).isTrue()
         assertThat(suggested.sentTo).isEmpty()
         assertThat(suggested.messagePreview).isEqualTo(message)
-        verify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
+        coVerify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
     }
 
     @Test
@@ -238,12 +247,15 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns false
+        // Fixture correction for Etapa D GREEN: sentTo/lastAlertAt are now gated on the real
+        // send result, and the default relaxed mock returns false for an unstubbed suspend call.
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
         viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
         viewModel.uiState.getOrAwaitValue()
 
         val sent = viewModel.uiState.awaitNextValue { viewModel.confirmSend(nowMillis = now) }
 
-        verify { smsGateway.sendTextMessage("11988776543", message) }
+        coVerify { smsGateway.sendTextMessage("11988776543", message) }
         verify { prefs.lastAlertAt = now }
         assertThat(sent.showConfirmActions).isFalse()
         assertThat(sent.sentTo).hasSize(1)
@@ -262,7 +274,7 @@ class GlucoseAlertViewModelTest {
 
         assertThat(state.showConfirmActions).isFalse()
         assertThat(state.sentTo).isEmpty()
-        verify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
+        coVerify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
     }
 
     // --- Correct repass of source/direction into the use case ---
@@ -323,6 +335,61 @@ class GlucoseAlertViewModelTest {
         assertThat(directionSlot.captured).isEqualTo(AlertDirection.HYPER)
     }
 
+    // --- Async send result must gate what counts as "sent" (Etapa D field regression) ---
+    //
+    // A physical-device test showed "SMS ENVIADO AUTOMATICAMENTE" and a written throttle for
+    // a message the carrier silently dropped, because AndroidSmsGateway.sendTextMessage
+    // returned `true` just because no exception was thrown. These two tests pin the two
+    // symptoms visible at this ViewModel: the throttle must not survive a send that failed,
+    // and a recipient whose send failed must not show up in the "already sent" list.
+    //
+    // NOTE for GREEN (done): fixing this also flipped three other tests that used the default
+    // `relaxed` smsGateway mock, which returns `false` for an unstubbed call — `use case true
+    // sends to every alert recipient...` (~163), `use case true records last_alert_at` (~180)
+    // and `confirming the suggestion sends to every recipient...` (~234). Each now stubs
+    // `coEvery { smsGateway.sendTextMessage(any(), any()) } returns true` for a reason
+    // unrelated to this bug: sentTo/lastAlertAt are filtered by the actual send result.
+    // SmsGateway.sendTextMessage is `suspend` (Etapa D), so every/verify on it became
+    // coEvery/coVerify throughout this file.
+
+    @Test
+    fun `does not record last_alert_at when every send fails`() {
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns false
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        viewModel.uiState.getOrAwaitValue()
+
+        // Today prefs.lastAlertAt is written before the gateway is even called, unconditionally
+        // on the result, so this verify(exactly = 0) fails against the current implementation.
+        verify(exactly = 0) { prefs.lastAlertAt = now }
+    }
+
+    @Test
+    fun `omits a recipient from sentTo when their send fails`() {
+        val recipients = listOf(
+            sampleContact(id = 1, name = "Ana", phone = "11900000001"),
+            sampleContact(id = 2, name = "Beto", phone = "11900000002")
+        )
+        every { dbHelper.getAlertRecipients() } returns recipients
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage("11900000001", any()) } returns false
+        coEvery { smsGateway.sendTextMessage("11900000002", any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        // Today sentTo is built unconditionally from the recipient list regardless of the
+        // gateway result, so Ana still shows up as "sent" -> this assertion fails against
+        // current code (sentTo has size 2, both names present).
+        assertThat(state.sentTo.map { it.name }).containsExactly("Beto")
+    }
+
     // --- Throttle ---
 
     @Test
@@ -347,6 +414,196 @@ class GlucoseAlertViewModelTest {
                 throttleMin = 30
             )
         }
-        verify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
+        coVerify(exactly = 0) { smsGateway.sendTextMessage(any(), any()) }
+    }
+
+    // --- Achado crítico: btnImOk text must follow the alert direction ---
+    //
+    // Field observation on a real device: with a 220 mg/dL reading and the "Glicemia alta"
+    // title on screen, btnImOk still read "Estou bem — já tomei açúcar" — sugar is the
+    // HYPOglycemia treatment, so offering it during a hyperglycemia alert is an inverted
+    // clinical instruction shown to a child on an emergency screen. GlucoseAlertViewModel
+    // already derives AlertDirection in start() (used above to pick hypoMode/hyperMode); it
+    // just never turns that into button copy. These three tests pin the ViewModel side of the
+    // fix — the exact text GlucoseAlertUiState must expose per direction — and, most
+    // importantly, make sure this specific clinical inversion can never come back unnoticed.
+    // NOTE: GlucoseAlertUiState has no `imOkButtonText` field yet — GREEN must add it.
+
+    @Test
+    fun `hypo direction keeps the sugar confirmation text on the im-ok button`() {
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+
+        // value 54 is below the default rangeMin (70) -> HYPO
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.imOkButtonText).isEqualTo("Estou bem — já tomei açúcar")
+    }
+
+    @Test
+    fun `hyper direction confirms the correction was applied on the im-ok button`() {
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+
+        // value 260 is above the default rangeMax (180) -> HYPER
+        viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.imOkButtonText).isEqualTo("Estou bem — já apliquei a correção")
+    }
+
+    @Test
+    fun `hyper direction never offers sugar on the im-ok button`() {
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+
+        // Same setup as above: value 260 -> HYPER. This is the regression guard — the exact
+        // defect observed in the field must never be reintroduced by a future simplification.
+        viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.imOkButtonText).doesNotContain("açúcar")
+    }
+
+    // --- Field defect (RED, session of 09/08/2026): three b22 elements with fixed content that
+    // never reacts to what the send actually did. All three verified on a physical device.
+
+    // 2.1 — btnResend.visibility is never touched in code (activity_glucose_alert.xml:91): the
+    // "Reenviar" button shows up even when nothing has gone out yet, offering to repeat a send
+    // that never happened. The only place the design mock shows "Reenviar" (GlicoKids Design.dc.html,
+    // id="b22", lines ~765-771 and its f22 pair ~1708-1714) is right inside the llSentTo block —
+    // never alone, never next to llConfirmActions — so the mock's own composition already ties
+    // "Reenviar" to "something was already sent", not to unconditional visibility.
+
+    @Test
+    fun `showResendAction is false before anything has actually been sent`() {
+        every { prefs.alertModeHypo } returns AlertMode.SUGGEST
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.sentTo).isEmpty()
+        assertThat(state.showResendAction).isFalse()
+    }
+
+    @Test
+    fun `showResendAction turns true only once a send actually delivered to someone`() {
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.sentTo).isNotEmpty()
+        assertThat(state.showResendAction).isTrue()
+    }
+
+    // 2.2 — tvThrottleNotice always shows "próximo alerta só daqui a X min" (activity_glucose_alert.xml:106-110
+    // + GlucoseAlertActivity.observeViewModel), even when last_alert_at was never written.
+    // Verified on device: a MANUAL reading of 55 showed the notice without recording any throttle.
+
+    @Test
+    fun `the field regression - a manual reading with no alert ever sent does not claim a throttle window`() {
+        every { prefs.lastAlertAt } returns 0L
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false // ShouldAutoAlertUseCaseTest already proves MANUAL never auto-sends
+
+        viewModel.start(value = 55, timestampMillis = now, source = ReadingSource.MANUAL, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.showThrottleNotice).isFalse()
+    }
+
+    @Test
+    fun `showThrottleNotice turns true once this alert actually sends`() {
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.showThrottleNotice).isTrue()
+    }
+
+    @Test
+    fun `showThrottleNotice stays true while an earlier alert's window has not elapsed, even without a new send`() {
+        every { prefs.lastAlertAt } returns now - 5 * 60_000L
+        every { prefs.alertThrottleMin } returns 30
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false // still inside the 30-minute window from an earlier alert
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.showThrottleNotice).isTrue()
+    }
+
+    // 2.3 — with SEND_SMS revoked, AndroidSmsGateway.sendTextMessage catches the SecurityException
+    // and returns `false`, the same catch-all already used for any delivery failure — so from the
+    // ViewModel's side "permission denied" and "every send attempt failed" are the SAME signal:
+    // it never needs a new channel from Context (which it cannot touch), only to react to the
+    // result SmsGateway already hands back. handoff-android.md line 241: "Permissão negada nunca
+    // derruba a tela: toast explicando e o botão continua clicável." Today showConfirmActions is
+    // set to false after ANY send() (successful or not), so tapping "Enviar agora" makes every
+    // button disappear with no explanation at all — verified on device.
+
+    @Test
+    fun `the field regression - confirming a send that reaches nobody surfaces an explanation instead of just hiding the buttons`() {
+        val recipients = listOf(sampleContact(id = 1, name = "Ana", phone = "11988776543"))
+        every { dbHelper.getAlertRecipients() } returns recipients
+        every { prefs.alertModeHyper } returns AlertMode.SUGGEST
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns false // e.g. SEND_SMS revoked
+
+        viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        viewModel.uiState.getOrAwaitValue()
+        val failed = viewModel.uiState.awaitNextValue { viewModel.confirmSend(nowMillis = now) }
+
+        assertThat(failed.sentTo).isEmpty()
+        assertThat(failed.sendFailedMessage).isNotNull()
+    }
+
+    @Test
+    fun `sendFailedMessage stays null when the send actually reaches someone`() {
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.sendFailedMessage).isNull()
+    }
+
+    @Test
+    fun `sendFailedMessage stays null when nothing was attempted at all`() {
+        every { prefs.alertModeHypo } returns AlertMode.OFF
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns false
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue()
+
+        assertThat(state.sendFailedMessage).isNull()
     }
 }

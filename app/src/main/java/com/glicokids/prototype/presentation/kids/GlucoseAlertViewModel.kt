@@ -20,12 +20,27 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** What the caregiver sees on b22. [sentTo] stays empty until the automatic send or
- * [GlucoseAlertViewModel.confirmSend] actually goes out. */
+ * [GlucoseAlertViewModel.confirmSend] actually goes out.
+ *
+ * Module 6 — field defect (session of 09/08/2026): [showResendAction], [showThrottleNotice]
+ * and [sendFailedMessage] replace three pieces of the screen that used to be unconditional —
+ * "Reenviar" always visible, the throttle caption always shown even with nothing sent, and a
+ * failed confirmSend silently hiding every button with no explanation. */
 data class GlucoseAlertUiState(
     val messagePreview: String,
     val sentTo: List<SentAlertRecipient>,
     val showConfirmActions: Boolean,
-    val throttleMin: Int
+    val throttleMin: Int,
+    val imOkButtonText: String,
+    /** "Reenviar" only makes sense once something has actually gone out — the design mock
+     * (b22/f22) only ever shows it inside the llSentTo block, never on its own. */
+    val showResendAction: Boolean,
+    /** True either because this alert just sent, or because an earlier alert's throttle
+     * window has not elapsed yet — never for a reading that neither sent nor is blocked. */
+    val showThrottleNotice: Boolean,
+    /** Non-null only after a real send attempt (recipients existed) reached nobody — e.g.
+     * SEND_SMS revoked. Null both before any attempt and after a successful one. */
+    val sendFailedMessage: String?
 )
 
 /** One line of the "already sent" list — name, relationship and when it went out. */
@@ -61,6 +76,11 @@ class GlucoseAlertViewModel @Inject constructor(
      * text the caregiver already saw in the preview instead of building a second one. */
     private var pendingMessage: String = ""
 
+    /** The btnImOk label picked in [start] from the alert direction, kept around so [send]
+     * can still put it in the [GlucoseAlertUiState] it builds after a manual confirmSend —
+     * that path never sees the direction again. */
+    private var pendingImOkButtonText: String = ""
+
     fun start(
         value: Int,
         timestampMillis: Long,
@@ -80,6 +100,7 @@ class GlucoseAlertViewModel @Inject constructor(
             fromSensor = source == ReadingSource.SENSOR
         )
         pendingMessage = message
+        pendingImOkButtonText = imOkButtonText(direction)
 
         val shouldSend = shouldAutoAlertUseCase.execute(
             source = source,
@@ -98,39 +119,80 @@ class GlucoseAlertViewModel @Inject constructor(
                 messagePreview = message,
                 sentTo = emptyList(),
                 showConfirmActions = mode == AlertMode.SUGGEST,
-                throttleMin = prefs.alertThrottleMin
+                throttleMin = prefs.alertThrottleMin,
+                imOkButtonText = pendingImOkButtonText,
+                showResendAction = false,
+                showThrottleNotice = isThrottleWindowActive(nowMillis),
+                sendFailedMessage = null
             )
         }
     }
+
+    /** True while an earlier alert's throttle window has not elapsed yet. Read fresh every
+     * time instead of cached — [prefs.lastAlertAt] can change between calls (a successful
+     * [send] writes it), and this same check backs [GlucoseAlertUiState.showThrottleNotice]
+     * both before and after a send attempt. */
+    private fun isThrottleWindowActive(nowMillis: Long): Boolean =
+        (nowMillis - prefs.lastAlertAt) < prefs.alertThrottleMin * 60_000L
 
     fun confirmSend(nowMillis: Long = System.currentTimeMillis()) {
         send(pendingMessage, nowMillis)
     }
 
+    /** Sugar treats HYPOglycemia only. During a HYPER alert the button must confirm the
+     * correction that was already applied — never re-offer sugar, which would invert the
+     * clinical instruction shown to the child on this emergency screen. Same HYPO-vs-else
+     * split as the `mode` pick above: this screen only ever opens for an out-of-range
+     * reading, so NONE never reaches here in practice. */
+    private fun imOkButtonText(direction: AlertDirection): String =
+        if (direction == AlertDirection.HYPO) "Estou bem — já tomei açúcar"
+        else "Estou bem — já apliquei a correção"
+
     /**
-     * Sends [message] to every alert recipient off the main thread. `sendTextMessage`'s
-     * result is read but never branched on — a failure for one recipient never stops the
-     * loop from reaching the next one.
+     * Sends [message] to every alert recipient off the main thread. A failure for one
+     * recipient never stops the loop from reaching the next one, but — Etapa D field
+     * regression — a recipient only shows up in [SentAlertRecipient] once the carrier has
+     * actually confirmed the send, and the throttle is only written when at least one send
+     * confirms; if every send fails, `lastAlertAt` is left alone so the next reading can
+     * try again instead of being silently throttled for a message nobody received.
      */
     private fun send(message: String, nowMillis: Long) {
         viewModelScope.launch {
-            val sentTo = withContext(Dispatchers.IO) {
+            val (sentTo, sendFailedMessage) = withContext(Dispatchers.IO) {
                 val recipients = dbHelper.getAlertRecipients()
-                prefs.lastAlertAt = nowMillis
-                recipients.map { contact ->
+                val delivered = recipients.filter { contact ->
                     smsGateway.sendTextMessage(contact.phone, message)
+                }
+                if (delivered.isNotEmpty()) {
+                    prefs.lastAlertAt = nowMillis
+                }
+                val sentTo = delivered.map { contact ->
                     SentAlertRecipient(
                         name = contact.name,
                         relationship = contact.relationship,
                         sentAtMillis = nowMillis
                     )
                 }
+                // Field regression: a real attempt (recipients existed) that reached nobody —
+                // e.g. SEND_SMS revoked, AndroidSmsGateway catches the SecurityException and
+                // returns false for every recipient — used to look identical to a clean send.
+                val failedMessage = if (recipients.isNotEmpty() && delivered.isEmpty()) {
+                    "Não foi possível enviar o alerta agora. Verifique se a permissão de SMS " +
+                        "está ativada para o GlicoKids e tente de novo."
+                } else {
+                    null
+                }
+                sentTo to failedMessage
             }
             _uiState.value = GlucoseAlertUiState(
                 messagePreview = message,
                 sentTo = sentTo,
                 showConfirmActions = false,
-                throttleMin = prefs.alertThrottleMin
+                throttleMin = prefs.alertThrottleMin,
+                imOkButtonText = pendingImOkButtonText,
+                showResendAction = sentTo.isNotEmpty(),
+                showThrottleNotice = sentTo.isNotEmpty() || isThrottleWindowActive(nowMillis),
+                sendFailedMessage = sendFailedMessage
             )
         }
     }
