@@ -256,6 +256,64 @@ class SupportNetworkViewModelTest {
         verify { dbHelper.updateContact(match { it.id == 4L && it.receivesReport }) }
     }
 
+    // --- Defect A (RED) — a contact without an e-mail can never end up with
+    // receivesReport = true, no matter which entry point flips the switch.
+    //
+    // Two paths reach persistence today: the dialog's swDlgReceivesReport (b20, guarded only
+    // by ContactDialog's Save-button gate, which validateContact already covers) and the list
+    // row's swReceivesReport (b19, ContactAdapter.kt:67-71 -> onReportToggled -> this function),
+    // which writes straight to SQLite through updateContact with no validation at all. The
+    // second path is the one that actually lets an invalid state reach the database.
+    //
+    // canReceiveReport() does not exist on SupportNetworkViewModel yet — GREEN adds it so
+    // ContactDialog can also disable swDlgReceivesReport itself (not just gate Save) instead of
+    // leaving it checked and enabled with an empty e-mail field, per the b20 hint text.
+    // setReceivesReport() returning Unit does not exist as a guard point — GREEN changes its
+    // signature to return Boolean and refuses to persist when enabling without an e-mail.
+
+    @Test
+    fun `canReceiveReport e falso sem email, vazio ou so espacos`() {
+        assertThat(viewModel.canReceiveReport(null)).isFalse()
+        assertThat(viewModel.canReceiveReport("")).isFalse()
+        assertThat(viewModel.canReceiveReport("   ")).isFalse()
+    }
+
+    @Test
+    fun `canReceiveReport e verdadeiro com email preenchido`() {
+        assertThat(viewModel.canReceiveReport("ana@example.com")).isTrue()
+    }
+
+    @Test
+    fun `setReceivesReport recusa ligar o relatorio para contato sem email e nao persiste`() {
+        val semEmail = sampleContact(id = 5, email = null, receivesReport = false)
+
+        val aceito = viewModel.setReceivesReport(semEmail, true)
+
+        assertThat(aceito).isFalse()
+        verify(exactly = 0) { dbHelper.updateContact(any()) }
+        assertThat(viewModel.validationError.value).isNotNull()
+    }
+
+    @Test
+    fun `setReceivesReport liga normalmente quando o contato tem email`() {
+        val comEmail = sampleContact(id = 6, email = "ana@example.com", receivesReport = false)
+
+        val aceito = viewModel.setReceivesReport(comEmail, true)
+
+        assertThat(aceito).isTrue()
+        verify { dbHelper.updateContact(match { it.id == 6L && it.receivesReport }) }
+    }
+
+    @Test
+    fun `setReceivesReport sempre permite desligar mesmo sem email`() {
+        val semEmail = sampleContact(id = 7, email = null, receivesReport = true)
+
+        val aceito = viewModel.setReceivesReport(semEmail, false)
+
+        assertThat(aceito).isTrue()
+        verify { dbHelper.updateContact(match { it.id == 7L && !it.receivesReport }) }
+    }
+
     // --- List ---
 
     @Test
@@ -278,5 +336,46 @@ class SupportNetworkViewModelTest {
 
         assertThat(viewModel.summaryText.getOrAwaitValue()).isEqualTo("resumo mockado")
         verify { reportStorage.buildReport(now) }
+    }
+
+    // --- Requirement 2 (Module 6) — who the 7-day summary SMS goes to ---
+    //
+    // SupportNetworkActivity currently calls UIHelper.sendSmsViaMessagingApp(this, "", text) —
+    // an empty phone number, so the smsto: intent opens the contact picker instead of a
+    // pre-addressed conversation. handoff-android.md §9 does not say which contact a manual
+    // "share summary" tap should target when several are registered, so this suite adopts the
+    // narrowest defensible rule: the primary contact, because it is the one row guaranteed to
+    // exist and that GlicoKidsDbHelper.deleteContact refuses to remove (§9.1). getSummaryRecipientPhone()
+    // does not exist on SupportNetworkViewModel yet — GREEN adds it and wires the Activity to use it.
+
+    @Test
+    fun `telefone do resumo de 7 dias e o do contato principal, nao o primeiro da lista`() {
+        val outro = sampleContact(id = 2, phone = "11888880000", isPrimary = false)
+        val principal = sampleContact(id = 1, phone = "11999990000", isPrimary = true)
+        every { dbHelper.getContacts() } returns listOf(outro, principal)
+        val vm = SupportNetworkViewModel(dbHelper, reportStorage)
+
+        assertThat(vm.getSummaryRecipientPhone()).isEqualTo("11999990000")
+    }
+
+    @Test
+    fun `sem contato principal cadastrado, resumo de 7 dias fica sem destinatario`() {
+        every { dbHelper.getContacts() } returns emptyList()
+        val vm = SupportNetworkViewModel(dbHelper, reportStorage)
+
+        assertThat(vm.getSummaryRecipientPhone()).isNull()
+    }
+
+    // Onboarding (b3) never ran the primary-contact step yet (see TODO(onboarding) in
+    // GlicoKidsDbHelper), so a network with contacts but none marked isPrimary is today's
+    // reality, not an edge case — the summary still needs somewhere to go.
+    @Test
+    fun `sem contato principal mas com contatos cadastrados, resumo de 7 dias usa o primeiro da lista`() {
+        val primeiro = sampleContact(id = 1, phone = "11888880000", isPrimary = false)
+        val segundo = sampleContact(id = 2, phone = "11999990000", isPrimary = false)
+        every { dbHelper.getContacts() } returns listOf(primeiro, segundo)
+        val vm = SupportNetworkViewModel(dbHelper, reportStorage)
+
+        assertThat(vm.getSummaryRecipientPhone()).isEqualTo("11888880000")
     }
 }

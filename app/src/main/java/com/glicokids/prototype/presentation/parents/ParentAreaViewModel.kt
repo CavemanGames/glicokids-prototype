@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.data.local.ReportStorage
+import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.data.model.MealEntry
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,6 +63,12 @@ class ParentAreaViewModel @Inject constructor(
     private val _lastReportAt = MutableLiveData<Long>()
     val lastReportAt: LiveData<Long> = _lastReportAt
 
+    /** Defect C — tvSupportNetworkSummary (fragment_parent_area.xml:249) used to be a
+     * hardcoded string ParentAreaFragment never bound to anything. Published from the same
+     * SQLite read [refresh] already does, through [buildSupportNetworkSummary]. */
+    private val _supportNetworkSummary = MutableLiveData<String>()
+    val supportNetworkSummary: LiveData<String> = _supportNetworkSummary
+
     private val _validationError = MutableLiveData<String?>(null)
     val validationError: LiveData<String?> = _validationError
 
@@ -79,12 +86,14 @@ class ParentAreaViewModel @Inject constructor(
             val since = nowMillis - ReportStorage.SEVEN_DAYS_MILLIS
             val readings = withContext(Dispatchers.IO) { dbHelper.getGlucoseReadingsSince(since) }
             val recentMeals = withContext(Dispatchers.IO) { dbHelper.getRecentMeals(RECENT_MEALS_LIMIT) }
+            val supportContacts = withContext(Dispatchers.IO) { dbHelper.getContacts() }
 
             _weekBars.value = buildWeekBars(readings.map { it.createdAt to it.valueMgdl }, nowMillis)
             _timeInRange.value = if (readings.isEmpty()) 0 else {
                 readings.count { it.status == UIHelper.GlucoseStatus.NA_META } * 100 / readings.size
             }
             _meals.value = recentMeals
+            _supportNetworkSummary.value = buildSupportNetworkSummary(supportContacts)
         }
     }
 
@@ -209,6 +218,41 @@ class ParentAreaViewModel @Inject constructor(
             }
             _lastReportAt.value = prefs.lastReportAt
             onDone(path)
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Communication (Module 6, requirement 4) — who the e-mail report goes to
+    // ------------------------------------------------------------------
+
+    /**
+     * Requirement 4 — every contact with `receivesReport` on and a non-blank e-mail
+     * (handoff-android.md §9.4 row 4), same query shape as [SupportNetworkViewModel.refresh].
+     */
+    fun getReportRecipients(): List<String> {
+        return dbHelper.getContacts()
+            .filter { it.receivesReport && !it.email.isNullOrBlank() }
+            .map { it.email!! }
+    }
+
+    /**
+     * Defect C — the summary card text for the support network, built purely from what
+     * SQLite actually holds. Onboarding (b3) never ran, so `is_primary=0` on every row is
+     * today's reality, not an edge case: the wording never mentions "responsável" unless a
+     * primary contact truly exists. Texts pinned in `.artifacts/DECISOES-PENDENTES-VALIDACAO.md`.
+     */
+    internal fun buildSupportNetworkSummary(contacts: List<Contact>): String {
+        if (contacts.isEmpty()) return "Nenhum contato cadastrado"
+
+        val primary = contacts.firstOrNull { it.isPrimary }
+        val others = contacts.count { !it.isPrimary }
+
+        return when {
+            primary == null && others == 1 -> "1 contato cadastrado"
+            primary == null -> "$others contatos cadastrados"
+            others == 0 -> "Responsável: ${primary.name}"
+            others == 1 -> "Responsável: ${primary.name} · +1 contato"
+            else -> "Responsável: ${primary.name} · +$others contatos"
         }
     }
 

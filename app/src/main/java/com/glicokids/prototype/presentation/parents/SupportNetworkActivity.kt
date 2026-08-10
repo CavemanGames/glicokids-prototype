@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.PopupMenu
+import androidx.lifecycle.lifecycleScope
 import com.glicokids.prototype.R
 import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.databinding.ActivitySupportNetworkBinding
@@ -19,6 +20,9 @@ import com.glicokids.prototype.util.UIHelper
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * b19/b20 — Support network. Protected by PIN simply by living inside the Parent Area
@@ -106,8 +110,13 @@ class SupportNetworkActivity : AppCompatActivity() {
         viewModel.summaryText.observe(this) { text ->
             if (text != null && awaitingSummaryShare) {
                 awaitingSummaryShare = false
-                val sent = UIHelper.sendSmsViaMessagingApp(this, "", text)
-                if (!sent) UIHelper.showToast(this, "Nenhum aplicativo de SMS encontrado no aparelho")
+                val phone = viewModel.getSummaryRecipientPhone()
+                if (phone == null) {
+                    UIHelper.showToast(this, "Cadastre um contato na rede de apoio para enviar o resumo")
+                } else {
+                    val sent = UIHelper.sendSmsViaMessagingApp(this, phone, text)
+                    if (!sent) UIHelper.showToast(this, "Nenhum aplicativo de SMS encontrado no aparelho")
+                }
             }
         }
 
@@ -124,7 +133,16 @@ class SupportNetworkActivity : AppCompatActivity() {
     }
 
     private fun onReportToggled(contact: Contact, enabled: Boolean) {
-        viewModel.setReceivesReport(contact, enabled)
+        val accepted = viewModel.setReceivesReport(contact, enabled)
+        if (!accepted) {
+            // Refused (defect A): the contact has no e-mail. The row's own list of
+            // contacts was never mutated, so redrawing it snaps the switch back to
+            // contact.receivesReport instead of leaving it checked on screen while
+            // the database stayed untouched.
+            contactAdapter.notifyDataSetChanged()
+            UIHelper.showToast(this, "Cadastre um e-mail para ${contact.name} antes de ligar o relatório")
+            return
+        }
         binding.root.announceForAccessibility(
             "Relatório para ${contact.name} ${if (enabled) "ligado" else "desligado"}"
         )
@@ -186,11 +204,16 @@ class SupportNetworkActivity : AppCompatActivity() {
 
     private fun sendTestMessage(contact: Contact) {
         val message = "GlicoKids: mensagem de teste para ${contact.name}. Sua rede de apoio está configurada."
-        val sent = smsGateway.sendTextMessage(contact.phone, message)
-        UIHelper.showToast(
-            this,
-            if (sent) "SMS de teste enviado para ${contact.name}" else "Não foi possível enviar o SMS de teste"
-        )
+        // sendTextMessage is suspend since Etapa D — it waits for the carrier's real
+        // confirmation instead of assuming a send worked — so this hops off the main thread
+        // the same way NewMealActivity does for its own IO-bound work.
+        lifecycleScope.launch {
+            val sent = withContext(Dispatchers.IO) { smsGateway.sendTextMessage(contact.phone, message) }
+            UIHelper.showToast(
+                this@SupportNetworkActivity,
+                if (sent) "SMS de teste enviado para ${contact.name}" else "Não foi possível enviar o SMS de teste"
+            )
+        }
     }
 
     private fun confirmRemoveContact(contact: Contact) {

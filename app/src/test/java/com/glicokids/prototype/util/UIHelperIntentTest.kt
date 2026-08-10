@@ -48,7 +48,12 @@ class UIHelperIntentTest {
     }
 
     @Test
-    fun `sendEmailWithBody starts a chooser wrapping an ACTION_SEND intent with the rfc822 extras`() {
+    fun `sendEmailWithBody starts an ACTION_SENDTO intent with the mailto uri and the email extras`() {
+        // Field regression: a generic ACTION_SEND chooser offered WhatsApp, Quick Share and
+        // WhatsApp Business alongside Outlook and ignored EXTRA_EMAIL for every app that was
+        // not an e-mail client. ACTION_SENDTO with a bare "mailto:" URI is the same technique
+        // sendSmsViaMessagingApp already uses with "smsto:" — it filters the chooser down to
+        // e-mail apps only and every one of them honours the recipient/subject/body extras.
         val recipients = arrayOf("ana@example.com", "beto@example.com")
 
         val result = UIHelper.sendEmailWithBody(
@@ -58,26 +63,19 @@ class UIHelperIntentTest {
             "Corpo do relatorio"
         )
 
-        // Intent.createChooser wraps the real intent in an ACTION_CHOOSER envelope — the one
-        // Robolectric records via nextStartedActivity is the chooser, not the e-mail intent
-        // itself, so the actual ACTION_SEND intent has to be pulled out of EXTRA_INTENT.
-        val chooser = shadowOf(application).nextStartedActivity
-        assertThat(chooser).isNotNull()
-        assertThat(chooser.action).isEqualTo(Intent.ACTION_CHOOSER)
-
-        val target = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-        assertThat(target).isNotNull()
-        assertThat(target!!.action).isEqualTo(Intent.ACTION_SEND)
-        assertThat(target.type).isEqualTo("message/rfc822")
-        assertThat(target.getStringArrayExtra(Intent.EXTRA_EMAIL)).asList()
+        val started = shadowOf(application).nextStartedActivity
+        assertThat(started).isNotNull()
+        assertThat(started.action).isEqualTo(Intent.ACTION_SENDTO)
+        assertThat(started.data).isEqualTo(Uri.parse("mailto:"))
+        assertThat(started.getStringArrayExtra(Intent.EXTRA_EMAIL)).asList()
             .containsExactly("ana@example.com", "beto@example.com").inOrder()
-        assertThat(target.getStringExtra(Intent.EXTRA_SUBJECT)).isEqualTo("Relatorio GlicoKids - 7 dias")
-        assertThat(target.getStringExtra(Intent.EXTRA_TEXT)).isEqualTo("Corpo do relatorio")
+        assertThat(started.getStringExtra(Intent.EXTRA_SUBJECT)).isEqualTo("Relatorio GlicoKids - 7 dias")
+        assertThat(started.getStringExtra(Intent.EXTRA_TEXT)).isEqualTo("Corpo do relatorio")
         assertThat(result).isTrue()
     }
 
     @Test
-    fun `sendEmailWithBody returns false without throwing when no app can handle the chooser`() {
+    fun `sendEmailWithBody returns false without throwing when no app can handle the intent`() {
         shadowOf(application).checkActivities(true)
 
         val result = UIHelper.sendEmailWithBody(

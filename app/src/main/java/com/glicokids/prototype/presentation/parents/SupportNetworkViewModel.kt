@@ -146,10 +146,35 @@ class SupportNetworkViewModel @Inject constructor(
         refresh()
     }
 
-    fun setReceivesReport(contact: Contact, enabled: Boolean) {
+    /**
+     * Defect A fix — this is the path that used to write straight to SQLite with no
+     * validation ([ContactAdapter]'s row switch, unlike the dialog's Save button which
+     * already went through [validateContact]). Turning the report ON for a contact with
+     * no e-mail is refused and never reaches [GlicoKidsDbHelper.updateContact]; turning it
+     * OFF is always allowed. Returns false so the caller (the Activity) knows to revert
+     * the switch it already flipped on screen.
+     */
+    fun setReceivesReport(contact: Contact, enabled: Boolean): Boolean {
+        if (enabled && !canReceiveReport(contact.email)) {
+            _validationError.value = ContactValidationError(
+                ContactValidationField.EMAIL,
+                "O relatório por e-mail exige um endereço"
+            )
+            return false
+        }
         dbHelper.updateContact(contact.copy(receivesReport = enabled))
+        _validationError.value = null
         refresh()
+        return true
     }
+
+    /**
+     * Whether a contact can have [Contact.receivesReport] turned on — an e-mail that is
+     * non-null and non-blank after trimming. Shared by [setReceivesReport]'s guard and by
+     * [ContactDialog], which uses it to disable `swDlgReceivesReport` itself instead of
+     * only gating the Save button (defect A/B).
+     */
+    fun canReceiveReport(email: String?): Boolean = !email?.trim().isNullOrEmpty()
 
     /**
      * Requirement 2 — builds the same 7-day summary as the Parent Area report, through
@@ -161,6 +186,17 @@ class SupportNetworkViewModel @Inject constructor(
             val text = withContext(Dispatchers.IO) { reportStorage.buildReport(nowMillis) }
             _summaryText.value = text
         }
+    }
+
+    /**
+     * Requirement 2 — who the manual "share summary" SMS is addressed to: the primary
+     * contact, falling back to the first registered one because onboarding (b3) never
+     * ran and no contact is marked primary yet (see TODO(onboarding) in
+     * [GlicoKidsDbHelper]). Null only when the network has no contact at all.
+     */
+    fun getSummaryRecipientPhone(): String? {
+        val list = _contacts.value ?: return null
+        return list.firstOrNull { it.isPrimary }?.phone ?: list.firstOrNull()?.phone
     }
 
     private fun isValidEmail(email: String): Boolean = EMAIL_PATTERN.matches(email)
