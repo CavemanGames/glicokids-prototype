@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Botão secundário claro (b17 "Enviar por e-mail", b22 "Reenviar"/"Ligar"). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF"/>
+    <stroke android:width="2dp" android:color="#4527A0"/>
+    <corners android:radius="16dp"/>
+</shape>

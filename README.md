@@ -13,6 +13,7 @@ Managing Type 1 Diabetes in childhood requires constant mathematical calculation
 - **Dependency Injection**: Hilt
 - **Persistence**: `SharedPreferences` + `EncryptedSharedPreferences` (AES-256) + hand-written `SQLiteOpenHelper` (no Room)
 - **Navigation**: Navigation Component & Intents
+- **Device Communication**: `SmsManager` (native SMS), `Intent.ACTION_SENDTO` (`smsto:` and `mailto:`), `BroadcastReceiver` (incoming SMS), `NotificationManager`
 
 ## 4. User Experience (UX)
 *   **Child Interface (Primary UI)**: Playful, colorful, and reward-focused. Features a central "Meal Mission" (photo capture), achievement panels (badges and XP), and daily challenges.
@@ -90,6 +91,110 @@ Glucose colouring has one source of truth, `UIHelper.glucoseStatus(value, min, m
 - **Onboarding Flow**: Responsible party registration (LGPD compliant).
 - **Hero Profile**: Child's profile customization and initial clinical setup.
 - **Secure Authentication**: Google Login integration and PIN creation/recovery system.
+
+### Phase 6: Device Communication (Module 6)
+
+The support network — the people a family already trusts to help — needed a channel that
+works the moment a child's glucose leaves the target range, without waiting for anyone to
+open the app.
+
+| # | Requirement | API | Screen |
+|---|---|---|---|
+| 1 | Native SMS | `SmsManager.sendTextMessage()` | Glucose Alert screen — a sensor reading below target range messages every contact configured to receive alerts |
+| 2 | SMS via the messaging app | `Intent.ACTION_SENDTO` (`smsto:`) with a pre-filled body | Support Network screen — "Share 7-day summary" |
+| 3 | Incoming SMS + notification | `BroadcastReceiver` (`SMS_RECEIVED`) + `NotificationChannel`/`NotificationManager` | Received Messages screen |
+| 4 | Email | `Intent.ACTION_SENDTO` (`mailto:`) with recipient, subject, and body pre-filled | Parent Area — "Send by email", recipients are contacts opted into the report |
+
+**Support Network in SQLite.** Unlike single-value settings, the support network is a list of
+people, each with their own permissions — it lives in its own `contacts` table (`glicokids.db`,
+schema v2) rather than in `SharedPreferences`. `relationship` is a required field (mother,
+father, grandmother, grandfather, aunt/uncle, caregiver, doctor, school, other) — it is what
+lets a message recipient understand who is speaking. The contact registered during onboarding
+is inserted as the primary contact and cannot be removed, only edited; every other contact is
+managed through a read-only list plus a validated dialog, never inline.
+
+**Manual entries never trigger an automatic alert.** The app tracks how a glucose reading was
+captured — typed by the child (`MANUAL`) or reported by a sensor (`SENSOR`) — and only the
+sensor path can fire an SMS on its own. If the child typed the value, they are awake, aware,
+and already interacting with the app; automating a message on top of that would be noise, not
+safety. A single named rule owns this decision, so no screen re-implements it independently.
+
+**Hypoglycemia and hyperglycemia are configured separately**, each with its own automatic,
+suggest, or off mode, because they carry different clinical urgency: a low reading can precede
+loss of consciousness and defaults to sending automatically, while a high reading is safer to
+default to a one-tap confirmation before anyone is notified.
+
+**Privacy.** Messages carry the child's first name and last-name initial only, matching the
+report generated in Module 5 — never the full name. Consent is implicit in registering a
+contact, with an explicit notice shown at that point.
+
+**Accessibility and discoverability.** No action exists behind a long-press alone — every
+context menu also has a visible "⋮" button offering the same action, keeping the destructive
+and detail actions reachable without a gesture some users cannot perform. All interactive
+targets, including switches, meet a 48dp minimum touch area. Every icon that carries meaning
+has a `contentDescription` that states its current state (for example, "Ana, mother, receives
+SMS alerts"); purely decorative icons are marked as not important for accessibility. Glucose
+status is always paired with a text label, never communicated by color alone. The full flow
+from the Support Network screen through the alert and the received-message screen is navigable
+with TalkBack. A contrast check on this pass also caught `text_muted_light`, a token that fell
+short of the 4.5:1 minimum against every light background it was used on; it is corrected and
+now held in place by an automated test.
+
+Meal photo capture opens the device's own camera app
+(`ActivityResultContracts.TakePicturePreview()`); the photo is shown to the child in memory and
+is never written to disk. Carbohydrate values remain entered or confirmed by the user — the
+image does not feed the dose calculation. A planned evolution is to estimate carbohydrates from
+that photo using AI, to support children who are still learning to calculate them on their own;
+because an estimated value can be wrong, it will always be shown for confirmation before it
+feeds the dose calculation — the same confirmation step the meal flow already requires today.
+
+The default SMS-capable line configured on the device is the one Android's `SmsManager` uses to
+send; on a dual-SIM phone, that setting — not the app — decides which line the message goes out
+on.
+
+**What on-device testing found.** The automated suite stayed green throughout the module — 201 tests by the end —
+the defects below lived in UI wiring a JVM test suite has no way to reach, and surfaced only once
+the app ran on a physical phone. Two of the four requirements needed a fix once tried for real:
+sharing the 7-day summary opened the phone's contacts screen instead of the messaging app,
+because the phone number was never passed to the intent; the email button had no listener wired
+to it at all, and once wired, moved from a generic `ACTION_SEND` to the `mailto:` intent used
+above. Sending an SMS now also waits for the system's actual delivery result, with a timeout,
+before the alert screen reports success — earlier it reported "SMS sent" immediately after the
+call, with no confirmation the message had gone anywhere. On a physical device, one test message
+did not arrive, and the alert screen correctly reported that it could not confirm delivery rather
+than claiming success; the cause of the non-delivery was not determined. Three defects found this
+way carried clinical weight: a button that offered sugar during a hyperglycemia reading, a home
+screen that showed a fixed, reassuring number regardless of the last reading actually taken, and
+the SMS-confirmation issue above. All are fixed. This is the strongest argument in the module for
+treating on-device verification as its own required step, not an optional pass after the test
+suite is green.
+
+Emulator note: the Android emulator does not deliver SMS to a real phone number — a call to
+`sendTextMessage()` returning without an exception proves the call was made correctly (also
+covered by a `ShadowSmsManager` unit test), not that a message was received. Incoming SMS, by
+contrast, is testable end to end through the emulator's Extended Controls → Phone → Incoming
+SMS panel. Requirement 3 was verified end to end on a physical device: a message sent from a
+second line was captured by the receiver, matched against the support network, and displayed with
+the sender's name and relationship rather than a bare number.
+
+**SMS requires RCS to be turned off.** Modern messaging apps default to RCS, which travels over
+data and is end-to-end encrypted. RCS messages do not fire the `SMS_RECEIVED` broadcast — the only
+one Android exposes to an app that is not the device's default messaging app — so an incoming
+message never reaches the receiver, and an outgoing `SmsManager` call can be rerouted without
+confirmation. Both directions started working the moment chat features were disabled in the
+messaging app. This is a property of the transport, not of this app: any application that depends
+on SMS behaves the same way.
+
+**Outgoing SMS was refused by the telephony layer on the test device.** With RCS disabled and
+`SEND_SMS` granted, the send still failed, and the result intent now records why:
+`RESULT_ERROR_GENERIC_FAILURE`, with no carrier-specific extended code. That rules out the
+diagnosable causes — it is not `NO_SERVICE`, `RADIO_OFF`, `NULL_PDU` or `LIMIT_EXCEEDED`. What
+remains is a generic rejection by the telephony stack, consistent with a carrier or vendor policy
+that treats `SmsManager` differently for an app that is not the device's default messaging app;
+the same lines send normally from the system messaging app. The failure is on the send path, not
+in the app: the call was accepted, the result intent came back, and the reason came from
+telephony. The alert screen reports exactly that — it does not claim the message was sent, does
+not start the cooldown, and does not offer to resend something that never left.
 
 ## 7. Quality Assurance & DevOps
 - **Gitflow Strategy**: Professional branch structure (`main`, `staging`, `develop`).

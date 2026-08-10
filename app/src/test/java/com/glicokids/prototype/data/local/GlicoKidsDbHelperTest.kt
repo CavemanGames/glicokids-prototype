@@ -1,8 +1,10 @@
 package com.glicokids.prototype.data.local
 
 import androidx.test.core.app.ApplicationProvider
+import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.data.model.MealEntry
+import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
@@ -67,7 +69,7 @@ class GlicoKidsDbHelperTest {
             GlucoseReading(
                 valueMgdl = 250,
                 status = UIHelper.GlucoseStatus.FORA_DA_META,
-                source = GlucoseReading.Source.SENSOR,
+                source = ReadingSource.SENSOR,
                 createdAt = now
             )
         )
@@ -75,7 +77,7 @@ class GlicoKidsDbHelperTest {
         val salva = dbHelper.getGlucoseReadingsSince(0).single()
 
         assertThat(salva.status).isEqualTo(UIHelper.GlucoseStatus.FORA_DA_META)
-        assertThat(salva.source).isEqualTo(GlucoseReading.Source.SENSOR)
+        assertThat(salva.source).isEqualTo(ReadingSource.SENSOR)
     }
 
     @Test
@@ -97,10 +99,77 @@ class GlicoKidsDbHelperTest {
         assertThat(dbHelper.getRecentMeals(1).single().photoPath).isNull()
     }
 
+    // ------------------------------------------------------------------
+    // Module 6 — contacts (support network, schema v2)
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `getAlertRecipients returns only contacts subscribed to alerts`() {
+        dbHelper.insertContact(contact(name = "Ana", isPrimary = true, receivesAlert = true))
+        dbHelper.insertContact(contact(name = "Beto", receivesAlert = false))
+        dbHelper.insertContact(contact(name = "Carla", receivesAlert = true))
+
+        val recipients = dbHelper.getAlertRecipients()
+
+        assertThat(recipients.map { it.name }).containsExactly("Ana", "Carla")
+    }
+
+    @Test
+    fun `deleteContact silently refuses to remove the primary contact`() {
+        val primaryId = dbHelper.insertContact(contact(name = "Ana", isPrimary = true))
+
+        dbHelper.deleteContact(primaryId)
+
+        assertThat(dbHelper.getContacts().map { it.name }).contains("Ana")
+    }
+
+    @Test
+    fun `deleteContact removes a non primary contact`() {
+        val id = dbHelper.insertContact(contact(name = "Beto", isPrimary = false))
+
+        dbHelper.deleteContact(id)
+
+        assertThat(dbHelper.getContacts().map { it.name }).doesNotContain("Beto")
+    }
+
+    @Test
+    fun `findContactByPhone matches the formatted, plain digits and country code variants`() {
+        dbHelper.insertContact(contact(name = "Ana", phone = "(11) 98877-6543"))
+
+        assertThat(dbHelper.findContactByPhone("(11) 98877-6543")?.name).isEqualTo("Ana")
+        assertThat(dbHelper.findContactByPhone("11988776543")?.name).isEqualTo("Ana")
+        assertThat(dbHelper.findContactByPhone("+5511988776543")?.name).isEqualTo("Ana")
+    }
+
+    @Test
+    fun `findContactByPhone returns null when no contact matches`() {
+        dbHelper.insertContact(contact(name = "Ana", phone = "(11) 98877-6543"))
+
+        assertThat(dbHelper.findContactByPhone("11900000000")).isNull()
+    }
+
+    private fun contact(
+        name: String,
+        relationship: String = "Mãe",
+        phone: String = "(11) 98877-6543",
+        receivesAlert: Boolean = true,
+        receivesReport: Boolean = false,
+        isPrimary: Boolean = false
+    ) = Contact(
+        name = name,
+        relationship = relationship,
+        phone = phone,
+        email = null,
+        receivesAlert = receivesAlert,
+        receivesReport = receivesReport,
+        isPrimary = isPrimary,
+        createdAt = now
+    )
+
     private fun reading(value: Int, at: Long) = GlucoseReading(
         valueMgdl = value,
         status = UIHelper.glucoseStatus(value, 70, 180),
-        source = GlucoseReading.Source.MANUAL,
+        source = ReadingSource.MANUAL,
         createdAt = at
     )
 

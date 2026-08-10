@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.data.model.MealEntry
+import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
@@ -112,7 +113,7 @@ class ReportStorageTest {
     private fun reading(value: Int, at: Long) = GlucoseReading(
         valueMgdl = value,
         status = UIHelper.glucoseStatus(value, 70, 180),
-        source = GlucoseReading.Source.MANUAL,
+        source = ReadingSource.MANUAL,
         createdAt = at
     )
 }

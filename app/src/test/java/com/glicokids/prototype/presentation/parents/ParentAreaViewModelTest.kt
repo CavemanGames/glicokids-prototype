@@ -4,6 +4,7 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.data.local.ReportStorage
+import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.util.UIHelper
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
@@ -109,5 +110,126 @@ class ParentAreaViewModelTest {
         every { prefs.rangeMax } returns 220
         val comFaixaAmpliada = viewModel.buildWeekBars(listOf(now to 190), now).last()
         assertThat(comFaixaAmpliada.status).isEqualTo(UIHelper.GlucoseStatus.NA_META)
+    }
+
+    // --- Requirement 4 (Module 6) — who the e-mail report goes to ---
+    //
+    // btnEmailReport exists in fragment_parent_area.xml (line 216) but ParentAreaFragment never
+    // registers a click listener on it — tapping it does nothing. handoff-android.md §9.4 row 4
+    // ties the e-mail requirement explicitly to "destinatários com receives_report=1", so this
+    // suite pins that rule down as the ViewModel-owned selection logic GREEN needs to wire the
+    // button to. getReportRecipients() does not exist on ParentAreaViewModel yet.
+
+    private fun sampleContact(
+        id: Long = 1,
+        email: String? = "contato$id@example.com",
+        receivesReport: Boolean = false
+    ) = Contact(
+        id = id,
+        name = "Contato $id",
+        relationship = "Mae",
+        phone = "11987654321",
+        email = email,
+        receivesAlert = true,
+        receivesReport = receivesReport,
+        isPrimary = false,
+        createdAt = 0L
+    )
+
+    @Test
+    fun `destinatarios do relatorio por email sao os contatos com receivesReport ligado`() {
+        val comRelatorio = sampleContact(id = 1, email = "ana@example.com", receivesReport = true)
+        val semRelatorio = sampleContact(id = 2, email = "beto@example.com", receivesReport = false)
+        every { dbHelper.getContacts() } returns listOf(comRelatorio, semRelatorio)
+
+        assertThat(viewModel.getReportRecipients()).containsExactly("ana@example.com")
+    }
+
+    @Test
+    fun `contato com receivesReport ligado mas sem email fica de fora dos destinatarios`() {
+        val semEmail = sampleContact(id = 1, email = null, receivesReport = true)
+        every { dbHelper.getContacts() } returns listOf(semEmail)
+
+        assertThat(viewModel.getReportRecipients()).isEmpty()
+    }
+
+    @Test
+    fun `nenhum contato configurado para relatorio devolve lista vazia de destinatarios`() {
+        every { dbHelper.getContacts() } returns emptyList()
+
+        assertThat(viewModel.getReportRecipients()).isEmpty()
+    }
+
+    @Test
+    fun `varios contatos com receivesReport ligado entram todos nos destinatarios`() {
+        val ana = sampleContact(id = 1, email = "ana@example.com", receivesReport = true)
+        val beto = sampleContact(id = 2, email = "beto@example.com", receivesReport = true)
+        val carla = sampleContact(id = 3, email = "carla@example.com", receivesReport = false)
+        every { dbHelper.getContacts() } returns listOf(ana, beto, carla)
+
+        assertThat(viewModel.getReportRecipients()).containsExactly("ana@example.com", "beto@example.com")
+    }
+
+    // --- Defect C (RED) — the support-network summary card must reflect the database ---
+    //
+    // tvSupportNetworkSummary (fragment_parent_area.xml:249) is a hardcoded XML string
+    // ("Nenhum contato além do responsável") that ParentAreaFragment never binds to anything.
+    // Onboarding (b3) never ran (TODO(onboarding) in GlicoKidsDbHelper), so is_primary=0 on
+    // every row is today's reality, not an edge case — the text must stay true whether or not
+    // a primary contact exists. handoff-android.md does not define the exact wording for this
+    // card, so this suite pins down a literal proposal for GREEN; produto/human should confirm
+    // the final copy before it ships. buildSupportNetworkSummary() does not exist on
+    // ParentAreaViewModel yet.
+
+    private fun contactFor(id: Long, name: String, isPrimary: Boolean) = Contact(
+        id = id,
+        name = name,
+        relationship = "Mae",
+        phone = "11987654321",
+        email = "c$id@example.com",
+        receivesAlert = true,
+        receivesReport = false,
+        isPrimary = isPrimary,
+        createdAt = 0L
+    )
+
+    @Test
+    fun `resumo da rede de apoio sem nenhum contato nao menciona responsavel`() {
+        assertThat(viewModel.buildSupportNetworkSummary(emptyList())).isEqualTo("Nenhum contato cadastrado")
+    }
+
+    @Test
+    fun `resumo da rede de apoio com um contato e nenhum principal nao menciona responsavel`() {
+        val contatos = listOf(contactFor(1, "Ana", isPrimary = false))
+
+        assertThat(viewModel.buildSupportNetworkSummary(contatos)).isEqualTo("1 contato cadastrado")
+    }
+
+    @Test
+    fun `resumo da rede de apoio pluraliza quando ha mais de um contato sem principal`() {
+        val contatos = listOf(
+            contactFor(1, "Ana", isPrimary = false),
+            contactFor(2, "Beto", isPrimary = false)
+        )
+
+        assertThat(viewModel.buildSupportNetworkSummary(contatos)).isEqualTo("2 contatos cadastrados")
+    }
+
+    @Test
+    fun `resumo da rede de apoio mostra o nome do responsavel quando ha contato principal`() {
+        val contatos = listOf(contactFor(1, "Ana", isPrimary = true))
+
+        assertThat(viewModel.buildSupportNetworkSummary(contatos)).isEqualTo("Responsável: Ana")
+    }
+
+    @Test
+    fun `resumo da rede de apoio soma os demais contatos ao lado do responsavel`() {
+        val contatos = listOf(
+            contactFor(1, "Ana", isPrimary = true),
+            contactFor(2, "Beto", isPrimary = false),
+            contactFor(3, "Carla", isPrimary = false)
+        )
+
+        assertThat(viewModel.buildSupportNetworkSummary(contatos)).isEqualTo("Responsável: Ana · +2 contatos")
     }
 }

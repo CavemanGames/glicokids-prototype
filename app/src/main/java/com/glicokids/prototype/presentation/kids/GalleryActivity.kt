@@ -7,6 +7,8 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.widget.PopupMenu
 import androidx.lifecycle.lifecycleScope
 import com.glicokids.prototype.R
 import com.glicokids.prototype.data.local.AppPreferences
@@ -57,7 +59,11 @@ class GalleryActivity : AppCompatActivity() {
                     isLocked = !record.unlocked
                 )
             }
-            binding.gvMedals.adapter = MedalAdapter(this@GalleryActivity, medals)
+            binding.gvMedals.adapter = MedalAdapter(this@GalleryActivity, medals) { anchor, medal ->
+                showMedalOptions(anchor, medal)
+            }
+            // Long-press keeps working (Module 4 requirement) — both paths call the same
+            // handleMedalAction, only the entry point (ContextMenu vs PopupMenu) differs.
             registerForContextMenu(binding.gvMedals)
         }
     }
@@ -90,7 +96,30 @@ class GalleryActivity : AppCompatActivity() {
             ?: return super.onContextItemSelected(item)
         val medal = medals.getOrNull(info.position) ?: return super.onContextItemSelected(item)
 
-        return when (item.itemId) {
+        return handleMedalAction(item.itemId, medal) || super.onContextItemSelected(item)
+    }
+
+    /**
+     * Module 6 · discoverability: the "⋮" button on unlocked medals (item_medal.xml) opens
+     * the same two actions as the long-press context menu, with the same header.
+     * Same construction as [KidsDashboardFragment]'s own "⋮" popup: without the
+     * ContextThemeWrapper the popup renders as a plain white rectangular block, breaking
+     * visual fidelity (popupMenuStyle/actionOverflowMenuStyle only cover the theme's own
+     * default PopupMenu, not one built with a bare Activity context).
+     */
+    private fun showMedalOptions(anchor: View, medal: Medal) {
+        val popupContext = ContextThemeWrapper(this, R.style.ThemeOverlay_GlicoKids_Popup)
+        PopupMenu(popupContext, anchor).apply {
+            menu.add(0, 0, 0, "${medal.name} · ${medal.rarity}").isEnabled = false
+            menu.add(0, 1, 1, "Ver Detalhes")
+            menu.add(0, 2, 2, "Compartilhar")
+            setOnMenuItemClickListener { item -> handleMedalAction(item.itemId, medal) }
+        }.show()
+    }
+
+    /** Single source of truth for both entry points (long-press context menu and "⋮"). */
+    private fun handleMedalAction(itemId: Int, medal: Medal): Boolean {
+        return when (itemId) {
             1 -> {
                 UIHelper.showToast(this, medal.description)
                 true
@@ -99,7 +128,7 @@ class GalleryActivity : AppCompatActivity() {
                 shareMedal(medal)
                 true
             }
-            else -> super.onContextItemSelected(item)
+            else -> false
         }
     }
 

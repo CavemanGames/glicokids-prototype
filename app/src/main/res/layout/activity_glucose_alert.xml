@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b22 · Alerta de glicemia fora da faixa. ÚNICA tela vermelha do app (emergência).
+     Modo AUTO: llSentTo já vem preenchido com "enviado". Modo SUGGEST: llConfirmActions visível e llSentTo oculto. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:background="@drawable/bg_gradient_alert">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+
+        <TextView android:id="@+id/tvAlertSource"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" android:layout_marginTop="12dp"
+            android:background="@drawable/bg_chip_alert_outline"
+            android:paddingHorizontal="14dp" android:paddingVertical="6dp"
+            android:textColor="#FFC2BD" android:textSize="11sp" android:textStyle="bold"
+            android:letterSpacing="0.06" android:textAllCaps="true" tools:text="Sensor · 09:41"/>
+
+        <TextView android:id="@+id/tvAlertTitle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:gravity="center"
+            android:textColor="@android:color/white" android:textSize="26sp" android:textStyle="bold"
+            tools:text="Glicemia baixa"/>
+
+        <TextView android:id="@+id/tvAlertValue"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textColor="#FF8A80" android:textSize="82sp" android:textStyle="bold"
+            tools:text="54"/>
+
+        <TextView android:id="@+id/tvAlertRange"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textColor="#8CFFFFFF" android:textSize="14sp" android:textStyle="bold"
+            tools:text="mg/dL · faixa alvo 70–180"/>
+
+        <!-- Modo AUTO: quem já recebeu -->
+        <LinearLayout android:id="@+id/llSentTo"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="22dp" android:orientation="vertical"
+            android:background="@drawable/bg_glass_card_alert" android:padding="16dp">
+            <TextView android:id="@+id/tvSentHeader"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="✓ SMS ENVIADO AUTOMATICAMENTE"
+                android:textColor="#7CFFDF" android:textSize="12sp" android:textStyle="bold" android:letterSpacing="0.05"/>
+            <!-- uma linha por contato com receives_alert=1 (inflada em código: nome · parentesco + status) -->
+            <LinearLayout android:id="@+id/llRecipients"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tvMessagePreview"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:background="@drawable/bg_message_preview"
+            android:paddingHorizontal="15dp" android:paddingVertical="13dp"
+            android:textColor="#C7FFFFFF" android:textSize="12sp" android:textStyle="bold"
+            android:lineSpacingMultiplier="1.4"
+            tools:text="GlicoKids: Lucas M. está com 54 mg/dL às 09:41 — abaixo da faixa (70–180). Leitura do sensor, sem confirmação da criança. Ligue se puder."/>
+
+        <!-- Modo SUGGEST: pedir um toque antes de enviar -->
+        <LinearLayout android:id="@+id/llConfirmActions"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:orientation="horizontal" android:visibility="gone">
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnNotNow"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:minHeight="52dp" android:insetTop="0dp" android:insetBottom="0dp"
+                android:background="@drawable/bg_button_ghost_light" app:backgroundTint="@null"
+                android:text="Agora não" android:textColor="@android:color/white"
+                android:textSize="13sp" android:textStyle="bold" android:textAllCaps="false"/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSendNow"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:minHeight="52dp"
+                android:insetTop="0dp" android:insetBottom="0dp"
+                android:background="@drawable/bg_button_success_3d" app:backgroundTint="@null"
+                android:text="Enviar agora" android:textColor="#032B21"
+                android:textSize="13sp" android:textStyle="bold" android:textAllCaps="false"/>
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnImOk"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:minHeight="58dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:background="@drawable/bg_button_success_3d" app:backgroundTint="@null"
+            tools:text="Estou bem — já tomei açúcar" android:textColor="#032B21"
+            android:textSize="16sp" android:textStyle="bold" android:textAllCaps="false"
+            android:contentDescription="Confirmar que a criança está bem e cancelar novos avisos"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnResend"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:minHeight="48dp" android:insetTop="0dp" android:insetBottom="0dp"
+                android:background="@drawable/bg_button_ghost_light" app:backgroundTint="@null"
+                android:text="Reenviar" android:textColor="@android:color/white"
+                android:textSize="13sp" android:textStyle="bold" android:textAllCaps="false"/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnCallPrimary"
+                android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:minHeight="48dp"
+                android:insetTop="0dp" android:insetBottom="0dp"
+                android:background="@drawable/bg_button_ghost_light" app:backgroundTint="@null"
+                android:textColor="@android:color/white" android:textSize="13sp"
+                android:textStyle="bold" android:textAllCaps="false" tools:text="Ligar para a Mãe"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tvThrottleNotice"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:layout_marginBottom="8dp" android:gravity="center"
+            android:textColor="#70FFFFFF" android:textSize="11sp" android:textStyle="bold"
+            tools:text="próximo alerta só daqui a 30 min · registrado no histórico"/>
+    </LinearLayout>
+</ScrollView>

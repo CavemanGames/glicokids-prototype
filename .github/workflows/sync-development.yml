@@ -3,6 +3,10 @@ name: Sync development from staging
 on:
   push:
     branches: [staging]
+  # Manual trigger: lets the sync be re-run from the Actions tab without
+  # waiting for a push to staging — needed whenever a run fails for a reason
+  # outside the code, such as an expired or re-scoped credential.
+  workflow_dispatch:
 
 permissions:
   contents: write

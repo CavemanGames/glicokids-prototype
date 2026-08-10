@@ -9,8 +9,8 @@
 
     <ImageButton
         android:id="@+id/btnBack"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:background="@drawable/bg_circle_white"
@@ -73,7 +73,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="🔒 https://diabetes.org.br"
+                    android:text="https://diabetes.org.br"
+                    android:drawableStart="@drawable/ic_lock_small" android:drawablePadding="6dp"
                     android:textColor="#757575"
                     android:textSize="12sp"
                     android:layout_gravity="center_horizontal" />

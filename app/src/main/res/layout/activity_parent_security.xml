@@ -7,7 +7,7 @@
 
     <ImageButton
         android:id="@+id/btnBack"
-        android:layout_width="40dp" android:layout_height="40dp"
+        android:layout_width="48dp" android:layout_height="48dp"
         android:layout_marginStart="16dp" android:layout_marginTop="16dp"
         android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
         android:contentDescription="Voltar"
@@ -17,7 +17,8 @@
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="🔒 Área dos Pais"
+        android:text="Área dos Pais"
+        android:drawableStart="@drawable/ic_lock_small" android:drawablePadding="10dp"
         android:textColor="@color/ink" android:textSize="22sp" android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/btnBack"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>

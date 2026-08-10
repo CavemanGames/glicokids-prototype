@@ -2,13 +2,17 @@ package com.glicokids.prototype.data.local
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.glicokids.prototype.R
+import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.data.model.Food
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.data.model.MealEntry
 import com.glicokids.prototype.data.model.MedalRecord
+import com.glicokids.prototype.data.model.ReceivedMessage
+import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
@@ -20,7 +24,8 @@ import javax.inject.Singleton
  * Module 5 — requirement 7: local database through a hand-written [SQLiteOpenHelper].
  *
  * Room is FORBIDDEN in this project (academic requirement) and its dependencies
- * were removed from the build. Schema follows handoff §8.2.
+ * were removed from the build. Every table below is created and migrated by hand,
+ * with a single well-defined owner for each one — no ORM-generated schema.
  *
  * Every call here touches disk: use it off the main thread.
  */
@@ -77,17 +82,65 @@ class GlicoKidsDbHelper @Inject constructor(
             );
             """.trimIndent()
         )
+        createContactsTable(db)
+        createReceivedMessagesTable(db)
 
         seedFoods(db)
         seedMedals(db)
     }
 
-    /** Prototype: recreating is acceptable, there is no production data to preserve. */
+    /**
+     * Module 6 — schema v2 adds `contacts`, schema v3 adds `received_messages`. Each
+     * step only adds the table it owns and never touches the ones before it — glucose
+     * history, meals, medals, foods and contacts must survive every upgrade, so no
+     * `DROP TABLE` here. A jump straight from v1 to v3 must apply both steps in the
+     * same pass, which is why each is guarded by its own `if`, not an `else`.
+     */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        listOf("glucose_readings", "meals", "medals", "foods").forEach {
-            db.execSQL("DROP TABLE IF EXISTS $it")
+        if (oldVersion < 2) {
+            createContactsTable(db)
         }
-        onCreate(db)
+        if (oldVersion < 3) {
+            createReceivedMessagesTable(db)
+        }
+    }
+
+    /** Shared by [onCreate] and [onUpgrade] so the schema is defined in a single place. */
+    private fun createContactsTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE contacts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              relationship TEXT NOT NULL,
+              phone TEXT NOT NULL,
+              email TEXT,
+              receives_alert INTEGER NOT NULL DEFAULT 1,
+              receives_report INTEGER NOT NULL DEFAULT 0,
+              is_primary INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL
+            );
+            """.trimIndent()
+        )
+    }
+
+    /**
+     * Module 6 — schema v3: the incoming-message inbox behind requirement 3 (b23). Shared
+     * by [onCreate] and [onUpgrade], same as [createContactsTable]. `contact_id` is left
+     * nullable on purpose — an unknown sender still gets its message stored and shown.
+     */
+    private fun createReceivedMessagesTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE received_messages (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              sender_phone TEXT NOT NULL,
+              contact_id INTEGER,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL
+            );
+            """.trimIndent()
+        )
     }
 
     // ------------------------------------------------------------------
@@ -168,6 +221,76 @@ class GlicoKidsDbHelper @Inject constructor(
             }
         )
 
+    fun insertContact(contact: Contact): Long =
+        writableDatabase.insert("contacts", null, contact.toContentValues())
+
+    fun updateContact(contact: Contact) {
+        writableDatabase.update(
+            "contacts",
+            contact.toContentValues(),
+            "id = ?",
+            arrayOf(contact.id.toString())
+        )
+    }
+
+    /** Silently refuses when [id] belongs to the primary contact — that row is never removed. */
+    fun deleteContact(id: Long) {
+        writableDatabase.delete("contacts", "id = ? AND is_primary = 0", arrayOf(id.toString()))
+    }
+
+    private fun Contact.toContentValues() = ContentValues().apply {
+        put("name", name)
+        put("relationship", relationship)
+        put("phone", phone)
+        put("email", email)
+        put("receives_alert", if (receivesAlert) 1 else 0)
+        put("receives_report", if (receivesReport) 1 else 0)
+        put("is_primary", if (isPrimary) 1 else 0)
+        put("created_at", createdAt)
+    }
+
+    /** Module 6 — b23: stores one inbound message. [SmsReceiver] is the only caller. */
+    fun insertReceivedMessage(message: ReceivedMessage): Long =
+        writableDatabase.insert("received_messages", null, message.toContentValues())
+
+    private fun ReceivedMessage.toContentValues() = ContentValues().apply {
+        put("sender_phone", senderPhone)
+        if (contactId != null) put("contact_id", contactId) else putNull("contact_id")
+        put("body", body)
+        put("received_at", receivedAt)
+    }
+
+    /**
+     * Module 6 — guarantees a primary contact row exists even though the guardian
+     * onboarding screens (b3/f3) are not implemented yet (Phase 4 of the roadmap).
+     * Idempotent — does nothing when a primary contact already exists.
+     *
+     * TODO(onboarding): AppPreferences currently holds no guardian identity data (only the
+     * child's profile — see AppPreferences.kt), so [name], [relationship] and [phone] are
+     * received as parameters instead of being read here. Once b3/f3 collect them, call this
+     * from the onboarding completion flow with the values gathered there.
+     */
+    fun ensurePrimaryContact(name: String, relationship: String, phone: String, email: String?, createdAt: Long): Long? {
+        val alreadyHasPrimary = readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM contacts WHERE is_primary = 1",
+            null
+        ).use { c -> c.moveToFirst(); c.getInt(0) > 0 }
+        if (alreadyHasPrimary) return null
+
+        return insertContact(
+            Contact(
+                name = name,
+                relationship = relationship,
+                phone = phone,
+                email = email,
+                receivesAlert = true,
+                receivesReport = true,
+                isPrimary = true,
+                createdAt = createdAt
+            )
+        )
+    }
+
     // ------------------------------------------------------------------
     // Reads
     // ------------------------------------------------------------------
@@ -181,19 +304,42 @@ class GlicoKidsDbHelper @Inject constructor(
             arrayOf(sinceMillis.toString())
         ).use { c ->
             while (c.moveToNext()) {
-                out += GlucoseReading(
-                    id = c.getLong(0),
-                    valueMgdl = c.getInt(1),
-                    status = runCatching { UIHelper.GlucoseStatus.valueOf(c.getString(2)) }
-                        .getOrDefault(UIHelper.GlucoseStatus.NA_META),
-                    source = runCatching { GlucoseReading.Source.valueOf(c.getString(3)) }
-                        .getOrDefault(GlucoseReading.Source.MANUAL),
-                    createdAt = c.getLong(4)
-                )
+                out += mapGlucoseReading(c)
             }
         }
         return out
     }
+
+    /**
+     * Module 6 — field defect fix: the [limit] most recent readings, most recent first.
+     * Backs [com.glicokids.prototype.domain.usecase.GetGlucoseTrendUseCase], which needs the
+     * previous reading alongside [getLastGlucoseReading]'s current one to decide the home
+     * dashboard's trend chip. Same `ORDER BY ... DESC LIMIT ?` shape as [getRecentMeals].
+     */
+    fun getRecentGlucoseReadings(limit: Int): List<GlucoseReading> {
+        val out = mutableListOf<GlucoseReading>()
+        readableDatabase.rawQuery(
+            "SELECT id, value_mgdl, status, source, created_at FROM glucose_readings " +
+                "ORDER BY created_at DESC LIMIT ?",
+            arrayOf(limit.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += mapGlucoseReading(c)
+            }
+        }
+        return out
+    }
+
+    /** Shared by every reader of `glucose_readings` — same `SELECT id, value_mgdl, status, source, created_at` column order. */
+    private fun mapGlucoseReading(c: Cursor): GlucoseReading = GlucoseReading(
+        id = c.getLong(0),
+        valueMgdl = c.getInt(1),
+        status = runCatching { UIHelper.GlucoseStatus.valueOf(c.getString(2)) }
+            .getOrDefault(UIHelper.GlucoseStatus.NA_META),
+        source = runCatching { ReadingSource.valueOf(c.getString(3)) }
+            .getOrDefault(ReadingSource.MANUAL),
+        createdAt = c.getLong(4)
+    )
 
     fun getMealsSince(sinceMillis: Long): List<MealEntry> =
         queryMeals("WHERE created_at >= ? ORDER BY created_at ASC", arrayOf(sinceMillis.toString()))
@@ -242,6 +388,97 @@ class GlicoKidsDbHelper @Inject constructor(
         return out
     }
 
+    fun getContacts(): List<Contact> = queryContacts("ORDER BY is_primary DESC, id ASC", null)
+
+    /** Contacts subscribed to the SMS/notification alert (`receives_alert = 1`). */
+    fun getAlertRecipients(): List<Contact> =
+        queryContacts("WHERE receives_alert = 1 ORDER BY id ASC", null)
+
+    /** Contacts subscribed to the e-mail report — needs a non-empty e-mail too. */
+    fun getReportRecipients(): List<Contact> =
+        queryContacts(
+            "WHERE receives_report = 1 AND email IS NOT NULL AND TRIM(email) != '' ORDER BY id ASC",
+            null
+        )
+
+    /**
+     * Matches [phone] against every stored contact by digits only — parentheses, spaces,
+     * hyphens and the `+55` country code are ignored on both sides of the comparison.
+     */
+    fun findContactByPhone(phone: String): Contact? {
+        val target = normalizePhone(phone)
+        return getContacts().firstOrNull { normalizePhone(it.phone) == target }
+    }
+
+    private fun normalizePhone(phone: String): String {
+        val digitsOnly = phone.filter { it.isDigit() }
+        return if (phone.trim().startsWith("+55")) digitsOnly.removePrefix("55") else digitsOnly
+    }
+
+    /** Every received message, most recent first — b23's inbox. */
+    fun getReceivedMessages(): List<ReceivedMessage> {
+        val out = mutableListOf<ReceivedMessage>()
+        readableDatabase.rawQuery(
+            "SELECT id, sender_phone, contact_id, body, received_at FROM received_messages " +
+                "ORDER BY received_at DESC",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += ReceivedMessage(
+                    id = c.getLong(0),
+                    senderPhone = c.getString(1),
+                    contactId = if (c.isNull(2)) null else c.getLong(2),
+                    body = c.getString(3),
+                    receivedAt = c.getLong(4)
+                )
+            }
+        }
+        return out
+    }
+
+    /** Backs the count chip on b19's "Transmissões recebidas" row. */
+    fun getReceivedMessageCount(): Int =
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM received_messages", null).use { c ->
+            c.moveToFirst()
+            c.getInt(0)
+        }
+
+    private fun queryContacts(clause: String, args: Array<String>?): List<Contact> {
+        val out = mutableListOf<Contact>()
+        readableDatabase.rawQuery(
+            "SELECT id, name, relationship, phone, email, receives_alert, receives_report, " +
+                "is_primary, created_at FROM contacts $clause",
+            args
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += Contact(
+                    id = c.getLong(0),
+                    name = c.getString(1),
+                    relationship = c.getString(2),
+                    phone = c.getString(3),
+                    email = if (c.isNull(4)) null else c.getString(4),
+                    receivesAlert = c.getInt(5) == 1,
+                    receivesReport = c.getInt(6) == 1,
+                    isPrimary = c.getInt(7) == 1,
+                    createdAt = c.getLong(8)
+                )
+            }
+        }
+        return out
+    }
+
+    /** Most recent glucose reading, or null when none was ever recorded. */
+    fun getLastGlucoseReading(): GlucoseReading? {
+        readableDatabase.rawQuery(
+            "SELECT id, value_mgdl, status, source, created_at FROM glucose_readings " +
+                "ORDER BY created_at DESC LIMIT 1",
+            null
+        ).use { c ->
+            if (!c.moveToFirst()) return null
+            return mapGlucoseReading(c)
+        }
+    }
+
     fun getFoods(): List<Food> {
         val out = mutableListOf<Food>()
         readableDatabase.rawQuery(
@@ -263,6 +500,6 @@ class GlicoKidsDbHelper @Inject constructor(
 
     companion object {
         const val DB_NAME = "glicokids.db"
-        const val DB_VERSION = 1
+        const val DB_VERSION = 3
     }
 }

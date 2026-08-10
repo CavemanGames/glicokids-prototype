@@ -7,7 +7,7 @@
 
     <ImageButton
         android:id="@+id/btnBack"
-        android:layout_width="40dp" android:layout_height="40dp"
+        android:layout_width="48dp" android:layout_height="48dp"
         android:layout_marginStart="16dp" android:layout_marginTop="16dp"
         android:background="@drawable/bg_circle_white" android:src="@drawable/ic_back_ink"
         android:contentDescription="Voltar"
@@ -31,10 +31,12 @@
         app:layout_constraintEnd_toEndOf="parent">
         <Button style="@style/Widget.Material3.Button.OutlinedButton" android:id="@+id/btnModeManual"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Digitar" android:textAllCaps="false" android:textSize="12sp"/>
+            android:text="Digitar" android:textAllCaps="false" android:textSize="12sp"
+            android:textColor="@color/toggle_mode_text_color" app:backgroundTint="@color/toggle_mode_bg_color"/>
         <Button style="@style/Widget.Material3.Button.OutlinedButton" android:id="@+id/btnModeSensor"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Sensor" android:textAllCaps="false" android:textSize="12sp"/>
+            android:text="Sensor" android:textAllCaps="false" android:textSize="12sp"
+            android:textColor="@color/toggle_mode_text_color" app:backgroundTint="@color/toggle_mode_bg_color"/>
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <com.google.android.material.card.MaterialCardView

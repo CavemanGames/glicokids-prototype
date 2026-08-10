@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- b16 · tgInputMode (btnModeManual/btnModeSensor) text color per checked state.
+     Declared explicitly so the toggle never falls back to the theme's colorOnSurface
+     default, which on Android 12+ resolves to dynamic (Material You) color instead of
+     the project palette. Default (unchecked) state must be @color/text_muted_light, per
+     the b16 toggle spec (GlicoKids Design.dc.html:464) — not @color/ink, which is not
+     part of that spec. Both states measured >= 4.5:1 (WCAG AA, handoff-android.md §10.5). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@android:color/white" android:state_checked="true"/>
+    <item android:color="@color/text_muted_light"/>
+</selector>
