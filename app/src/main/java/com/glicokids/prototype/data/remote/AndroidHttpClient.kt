@@ -2,6 +2,7 @@ package com.glicokids.prototype.data.remote
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.glicokids.prototype.domain.model.NetworkResult
 import com.glicokids.prototype.domain.repository.HttpClient
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -70,17 +71,20 @@ class AndroidHttpClient @Inject constructor(
         }
     }
 
-    // `getActiveNetworkInfo` is deprecated in favor of `getNetworkCapabilities(activeNetwork)`,
-    // but this only needs one synchronous yes/no answer at the moment a request is about to go
-    // out, not a subscription to future network changes — the deprecated call still gives that
-    // directly, and Robolectric's shadow mirrors it with a single `setActiveNetworkInfo`, the
-    // same pragmatic call already made for `Geocoder`/`SmsManager` elsewhere in this project.
-    @Suppress("DEPRECATION")
+    // Asks for VALIDATED as well as INTERNET, which is the difference between "attached to a
+    // network" and "that network actually reaches the internet". A phone sitting on a captive
+    // portal or a router with no uplink satisfies the first and fails the second, and reporting
+    // that as a service problem instead of a missing connection sends the user looking in the
+    // wrong place. Both capabilities predate this app's minimum supported release, so the older
+    // `getActiveNetworkInfo` buys nothing here.
     private fun isConnected(): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
                 ?: return false
-        return connectivityManager.activeNetworkInfo?.isConnected == true
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     companion object {

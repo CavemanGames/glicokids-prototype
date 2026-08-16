@@ -3,16 +3,19 @@ package com.glicokids.prototype.data.remote
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.test.core.app.ApplicationProvider
 import com.glicokids.prototype.domain.model.NetworkResult
 import com.google.common.truth.Truth.assertThat
 import java.net.ServerSocket
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowNetworkCapabilities
 
 /**
  * Module 7 — [AndroidHttpClient] against a real, loopback-only HTTP server ([FakeHttpServer],
@@ -30,6 +33,17 @@ class AndroidHttpClientTest {
     private val application = ApplicationProvider.getApplicationContext<Application>()
     private val client = AndroidHttpClient(application)
     private var server: FakeHttpServer? = null
+
+    @Before
+    fun givenAValidatedNetwork() {
+        val connectivityManager =
+            application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val capabilities = ShadowNetworkCapabilities.newInstance()
+        shadowOf(capabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadowOf(capabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        shadowOf(connectivityManager)
+            .setNetworkCapabilities(connectivityManager.activeNetwork, capabilities)
+    }
 
     @After
     fun stopServer() {
@@ -62,7 +76,9 @@ class AndroidHttpClientTest {
         val fakeServer = FakeHttpServer().also { server = it }
         val connectivityManager =
             application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        shadowOf(connectivityManager).setActiveNetworkInfo(null)
+        // No capabilities registered for the active network at all, which is what the client
+        // sees when the phone is not on a usable network.
+        shadowOf(connectivityManager).setNetworkCapabilities(connectivityManager.activeNetwork, null)
 
         val result = client.get(fakeServer.url("/unreached"), userAgent = "GlicoKids/1.0")
 
