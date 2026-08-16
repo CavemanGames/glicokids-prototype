@@ -7,9 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.location.RawLocationDataSource
 import com.glicokids.prototype.domain.model.GeoPoint
+import com.glicokids.prototype.domain.model.HealthPlace
 import com.glicokids.prototype.domain.model.LocationTech
+import com.glicokids.prototype.domain.model.NetworkResult
 import com.glicokids.prototype.domain.repository.GeocodingRepository
 import com.glicokids.prototype.domain.repository.LocationProvider
+import com.glicokids.prototype.domain.repository.NearbyHealthPlacesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import javax.inject.Inject
@@ -53,6 +56,7 @@ class AlertMapViewModel @Inject constructor(
     private val locationProvider: LocationProvider,
     private val geocodingRepository: GeocodingRepository,
     private val rawLocationDataSource: RawLocationDataSource,
+    private val nearbyHealthPlacesRepository: NearbyHealthPlacesRepository,
     @Named("mapsApiKey") private val mapsApiKey: String
 ) : ViewModel() {
 
@@ -80,7 +84,10 @@ class AlertMapViewModel @Inject constructor(
             isFollowingLocation = false,
             followedLocation = null,
             followError = null,
-            technologyReadings = emptyList()
+            technologyReadings = emptyList(),
+            isSearchingNearbyPlaces = false,
+            nearbyHealthPlaces = emptyList(),
+            nearbyPlacesMessage = null
         )
         loadTechnologyReadings()
     }
@@ -190,6 +197,74 @@ class AlertMapViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Requirement 7 — health places (hospital, pharmacy, clinic, doctor's office) near the point
+     * a parent most likely cares about right now. Never called from [init]: the Overpass call
+     * behind [NearbyHealthPlacesRepository] takes 5-15 seconds and has already proven unstable,
+     * so gating it behind an explicit tap is what keeps opening this screen fast regardless of
+     * that service's health.
+     *
+     * The anchor point is [AlertMapUiState.lastAlertLocation] when one exists — a parent looking
+     * at this screen is usually here *because* of that alert, so "help near where the alert came
+     * from" is the more useful default over "help near me right now". Only when no alert has ever
+     * carried a location does this fall back to [LocationProvider.getCurrentLocation]. When
+     * neither is available, [NearbyHealthPlacesRepository.findNearby] is never called at all —
+     * there is nothing honest to search around.
+     */
+    fun searchNearbyHealthPlaces() {
+        val started = _uiState.value ?: return
+        _uiState.value = started.copy(isSearchingNearbyPlaces = true, nearbyPlacesMessage = null)
+        viewModelScope.launch {
+            val anchor = started.lastAlertLocation
+                ?: withContext(Dispatchers.IO) { locationProvider.getCurrentLocation() }
+                    ?.let { MapPoint(lat = it.lat, lng = it.lng, label = formatCoordinate(it.lat, it.lng)) }
+
+            if (anchor == null) {
+                val current = _uiState.value ?: return@launch
+                _uiState.value = current.copy(
+                    isSearchingNearbyPlaces = false,
+                    nearbyPlacesMessage = "Não encontramos um alerta recente nem sua localização atual para buscar por perto."
+                )
+                return@launch
+            }
+
+            val result = withContext(Dispatchers.IO) {
+                nearbyHealthPlacesRepository.findNearby(
+                    lat = anchor.lat,
+                    lng = anchor.lng,
+                    radiusMeters = NEARBY_SEARCH_RADIUS_METERS
+                )
+            }
+            val current = _uiState.value ?: return@launch
+            _uiState.value = when (result) {
+                is NetworkResult.Success -> if (result.data.isEmpty()) {
+                    current.copy(
+                        isSearchingNearbyPlaces = false,
+                        nearbyPlacesMessage = "Nenhum lugar de saúde encontrado por perto."
+                    )
+                } else {
+                    current.copy(
+                        isSearchingNearbyPlaces = false,
+                        nearbyHealthPlaces = result.data,
+                        nearbyPlacesMessage = null
+                    )
+                }
+                is NetworkResult.Failure.NoConnection -> current.copy(
+                    isSearchingNearbyPlaces = false,
+                    nearbyPlacesMessage = "Sem conexão com a internet. Verifique sua conexão e tente novamente."
+                )
+                is NetworkResult.Failure.ServiceUnavailable -> current.copy(
+                    isSearchingNearbyPlaces = false,
+                    nearbyPlacesMessage = "O serviço de busca está indisponível no momento. Tente novamente em alguns minutos."
+                )
+                is NetworkResult.Failure.UnreadableResponse -> current.copy(
+                    isSearchingNearbyPlaces = false,
+                    nearbyPlacesMessage = "Não conseguimos entender a resposta do serviço de busca. Tente novamente."
+                )
+            }
+        }
+    }
+
     /** Locale.US on purpose: a pt-BR locale would print the decimal separator as a comma,
      * which would collide with the comma this format already uses between lat and lng and
      * make the label ambiguous to read back. */
@@ -204,6 +279,7 @@ class AlertMapViewModel @Inject constructor(
         const val MISSING_MAPS_API_KEY = "MISSING_MAPS_API_KEY"
 
         private const val FOLLOW_INTERVAL_MILLIS = 5_000L
+        private const val NEARBY_SEARCH_RADIUS_METERS = 5_000
     }
 }
 
@@ -242,5 +318,19 @@ data class AlertMapUiState(
     /** Requirement 5 — one entry per technology [RawLocationDataSource.sampleEachProvider]
      * managed to read a last-known fix for. An empty list is a legitimate outcome, left to the
      * Activity to explain rather than a second flag here. */
-    val technologyReadings: List<TechnologyReading>
+    val technologyReadings: List<TechnologyReading>,
+    /** Requirement 7 — true only while [AlertMapViewModel.searchNearbyHealthPlaces] has a call
+     * in flight (resolving the current position and/or waiting on the Overpass lookup, which
+     * alone can take 5-15 seconds). Defaults to false so existing tests that build this state
+     * without mentioning the field keep passing unchanged. */
+    val isSearchingNearbyPlaces: Boolean = false,
+    /** Requirement 7 — the last successful, non-empty search result, ordered by distance same as
+     * [NearbyHealthPlacesRepository.findNearby] returns it. Left untouched by a failed search, so
+     * a transient network error never wipes a result the parent is already looking at. */
+    val nearbyHealthPlaces: List<HealthPlace> = emptyList(),
+    /** Requirement 7 — set for every outcome that is not "found at least one place": no
+     * connection, service unavailable, unreadable response, an empty result, or no point to
+     * search around at all. Each has its own pt-BR text; never a generic "something went wrong".
+     * Cleared by the next search that finds something. */
+    val nearbyPlacesMessage: String? = null
 )

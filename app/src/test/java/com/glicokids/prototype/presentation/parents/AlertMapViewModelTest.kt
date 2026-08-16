@@ -7,10 +7,16 @@ import androidx.lifecycle.ViewModelStore
 import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.location.RawLocationDataSource
 import com.glicokids.prototype.domain.model.GeoPoint
+import com.glicokids.prototype.domain.model.HealthPlace
+import com.glicokids.prototype.domain.model.HealthPlaceType
 import com.glicokids.prototype.domain.model.LocationTech
+import com.glicokids.prototype.domain.model.NetworkResult
 import com.glicokids.prototype.domain.repository.FakeGeocodingRepository
 import com.glicokids.prototype.domain.repository.FakeLocationProvider
+import com.glicokids.prototype.domain.repository.FakeNearbyHealthPlacesRepository
 import com.glicokids.prototype.domain.repository.GeocodingRepository
+import com.glicokids.prototype.domain.repository.LocationProvider
+import com.glicokids.prototype.domain.repository.NearbyHealthPlacesRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -46,6 +52,7 @@ class AlertMapViewModelTest {
     private val rawLocationDataSource = mockk<RawLocationDataSource>(relaxed = true)
     private lateinit var fakeLocationProvider: FakeLocationProvider
     private lateinit var fakeGeocodingRepository: FakeGeocodingRepository
+    private lateinit var fakeNearbyHealthPlacesRepository: FakeNearbyHealthPlacesRepository
 
     private val validKey = "AIzaSyTestKeyLooksReal12345"
 
@@ -93,13 +100,15 @@ class AlertMapViewModelTest {
     private fun createViewModel(
         mapsApiKey: String = validKey,
         geocodingRepository: GeocodingRepository = fakeGeocodingRepository,
-        locationProvider: FakeLocationProvider = fakeLocationProvider
+        locationProvider: LocationProvider = fakeLocationProvider,
+        nearbyHealthPlacesRepository: NearbyHealthPlacesRepository = fakeNearbyHealthPlacesRepository
     ): AlertMapViewModel {
         val viewModel = AlertMapViewModel(
             prefs = prefs,
             locationProvider = locationProvider,
             geocodingRepository = geocodingRepository,
             rawLocationDataSource = rawLocationDataSource,
+            nearbyHealthPlacesRepository = nearbyHealthPlacesRepository,
             mapsApiKey = mapsApiKey
         )
         coVerify(timeout = 2_000) { rawLocationDataSource.sampleEachProvider() }
@@ -111,6 +120,7 @@ class AlertMapViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         fakeLocationProvider = FakeLocationProvider()
         fakeGeocodingRepository = FakeGeocodingRepository()
+        fakeNearbyHealthPlacesRepository = FakeNearbyHealthPlacesRepository()
         every { prefs.lastAlertLocationAt } returns 0L
         every { prefs.lastAlertLocationLat } returns 0.0
         every { prefs.lastAlertLocationLng } returns 0.0
@@ -377,5 +387,182 @@ class AlertMapViewModelTest {
         val state = viewModel.uiState.getOrAwaitValue()
 
         assertThat(state.hasMapsApiKey).isTrue()
+    }
+
+    // --- Requirement 7: nearby health places ---
+
+    private fun givenLastAlertLocation(lat: Double = -23.55, lng: Double = -46.63) {
+        every { prefs.lastAlertLocationAt } returns 1_700_000_000_000L
+        every { prefs.lastAlertLocationLat } returns lat
+        every { prefs.lastAlertLocationLng } returns lng
+        every { prefs.lastAlertLocationLabel } returns "Rua Tal, 123"
+    }
+
+    private fun healthPlace(name: String, distanceMeters: Double) = HealthPlace(
+        name = name,
+        type = HealthPlaceType.HOSPITAL,
+        lat = -23.5,
+        lng = -46.6,
+        distanceMeters = distanceMeters
+    )
+
+    @Test
+    fun `never searches for nearby health places on open, since the lookup is slow and unreliable`() {
+        val spyRepository = mockk<NearbyHealthPlacesRepository>(relaxed = true)
+
+        createViewModel(nearbyHealthPlacesRepository = spyRepository)
+
+        coVerify(exactly = 0) { spyRepository.findNearby(any(), any(), any()) }
+    }
+
+    @Test
+    fun `searches around the last alert location when one exists`() {
+        givenLastAlertLocation(lat = -23.55, lng = -46.63)
+        val spyRepository = mockk<NearbyHealthPlacesRepository>()
+        coEvery { spyRepository.findNearby(any(), any(), any()) } returns NetworkResult.Success(emptyList())
+        val viewModel = createViewModel(nearbyHealthPlacesRepository = spyRepository)
+
+        viewModel.searchNearbyHealthPlaces()
+        viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        coVerify { spyRepository.findNearby(lat = -23.55, lng = -46.63, radiusMeters = any()) }
+    }
+
+    @Test
+    fun `falls back to the current position when no alert has ever carried a location`() {
+        val fix = GeoPoint(lat = 1.0, lng = 2.0, accuracyMeters = 5f, tech = LocationTech.GPS, timestampMillis = 0L)
+        fakeLocationProvider.permissionGranted = true
+        fakeLocationProvider.fix = fix
+        val spyRepository = mockk<NearbyHealthPlacesRepository>()
+        coEvery { spyRepository.findNearby(any(), any(), any()) } returns NetworkResult.Success(emptyList())
+        val viewModel = createViewModel(nearbyHealthPlacesRepository = spyRepository)
+
+        viewModel.searchNearbyHealthPlaces()
+        viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        coVerify { spyRepository.findNearby(lat = 1.0, lng = 2.0, radiusMeters = any()) }
+    }
+
+    @Test
+    fun `explains there is nowhere to search from and never calls the repository when there is no alert and no current position`() {
+        fakeLocationProvider.permissionGranted = true
+        fakeLocationProvider.fix = null
+        val spyRepository = mockk<NearbyHealthPlacesRepository>(relaxed = true)
+        val viewModel = createViewModel(nearbyHealthPlacesRepository = spyRepository)
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isSearchingNearbyPlaces })
+
+        assertThat(state.nearbyPlacesMessage).isNotNull()
+        assertThat(state.nearbyHealthPlaces).isEmpty()
+        coVerify(exactly = 0) { spyRepository.findNearby(any(), any(), any()) }
+    }
+
+    // Same trap as `isResolvingAddress`: a fake that resolves instantly under an Unconfined
+    // dispatcher would leave this green even if the ViewModel forgot to publish the pending
+    // state before the lookup resumes. A genuinely suspending mock forces the same ordering a
+    // device (and the 5-15 second real Overpass call) would show.
+    @Test
+    fun `isSearchingNearbyPlaces is true immediately while the lookup is pending`() {
+        givenLastAlertLocation()
+        val hangingRepository = mockk<NearbyHealthPlacesRepository>()
+        coEvery { hangingRepository.findNearby(any(), any(), any()) } coAnswers {
+            delay(Long.MAX_VALUE)
+            NetworkResult.Success(emptyList())
+        }
+        val viewModel = createViewModel(nearbyHealthPlacesRepository = hangingRepository)
+
+        viewModel.searchNearbyHealthPlaces()
+
+        val state = viewModel.uiState.value
+        assertThat(state).isNotNull()
+        assertThat(state!!.isSearchingNearbyPlaces).isTrue()
+    }
+
+    @Test
+    fun `a successful search with results populates the list, ordered by distance, and clears the message`() {
+        givenLastAlertLocation()
+        val places = listOf(healthPlace("Farmácia Perto", 120.0), healthPlace("Hospital Longe", 900.0))
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Success(places)
+        val viewModel = createViewModel()
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyHealthPlaces.isNotEmpty() })
+
+        assertThat(state.nearbyHealthPlaces).containsExactlyElementsIn(places).inOrder()
+        assertThat(state.nearbyPlacesMessage).isNull()
+        assertThat(state.isSearchingNearbyPlaces).isFalse()
+    }
+
+    @Test
+    fun `an empty successful search is not treated as a failure but says nothing was found nearby`() {
+        givenLastAlertLocation()
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Success(emptyList())
+        val viewModel = createViewModel()
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        assertThat(state.nearbyHealthPlaces).isEmpty()
+        assertThat(state.nearbyPlacesMessage).isNotNull()
+    }
+
+    @Test
+    fun `a no-connection failure gets its own message`() {
+        givenLastAlertLocation()
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Failure.NoConnection
+        val viewModel = createViewModel()
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        assertThat(state.nearbyPlacesMessage).isEqualTo(
+            "Sem conexão com a internet. Verifique sua conexão e tente novamente."
+        )
+    }
+
+    @Test
+    fun `a service-unavailable failure gets its own message, distinct from no-connection`() {
+        givenLastAlertLocation()
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Failure.ServiceUnavailable(503)
+        val viewModel = createViewModel()
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        assertThat(state.nearbyPlacesMessage).isEqualTo(
+            "O serviço de busca está indisponível no momento. Tente novamente em alguns minutos."
+        )
+    }
+
+    @Test
+    fun `an unreadable-response failure gets its own message, distinct from the other two`() {
+        givenLastAlertLocation()
+        fakeNearbyHealthPlacesRepository.result =
+            NetworkResult.Failure.UnreadableResponse(RuntimeException("malformed payload"))
+        val viewModel = createViewModel()
+
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        assertThat(state.nearbyPlacesMessage).isEqualTo(
+            "Não conseguimos entender a resposta do serviço de busca. Tente novamente."
+        )
+    }
+
+    @Test
+    fun `a failed search keeps showing the previous successful result instead of wiping it`() {
+        givenLastAlertLocation()
+        val places = listOf(healthPlace("Farmácia Perto", 120.0))
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Success(places)
+        val viewModel = createViewModel()
+        viewModel.searchNearbyHealthPlaces()
+        viewModel.uiState.getOrAwaitValue(until = { it.nearbyHealthPlaces.isNotEmpty() })
+
+        fakeNearbyHealthPlacesRepository.result = NetworkResult.Failure.NoConnection
+        viewModel.searchNearbyHealthPlaces()
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.nearbyPlacesMessage != null })
+
+        assertThat(state.nearbyHealthPlaces).isEqualTo(places)
     }
 }
