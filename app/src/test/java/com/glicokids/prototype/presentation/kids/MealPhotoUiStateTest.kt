@@ -4,7 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /**
- * Module 6 (Etapa D) — b9 real camera capture (`.artifacts/SPEC-camera-captura-real.md` §6).
+ * Module 6 — real camera capture on b9.
  *
  * `NewMealActivity` decides, in its `TakePicturePreview()` callback, whether `ivMealPhoto`
  * should be shown/announced and whether `ivPhotoPlaceholder` should be visible. That decision

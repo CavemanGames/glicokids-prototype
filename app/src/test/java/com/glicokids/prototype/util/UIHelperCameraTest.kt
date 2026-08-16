@@ -15,9 +15,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 /**
- * Module 6 (Etapa D) — the two pure checks `NewMealActivity` needs before it may launch the
- * system camera (`.artifacts/SPEC-camera-captura-real.md` §3b/§7): `CAMERA` permission granted,
- * and some app on the device resolving the image-capture intent. Both are extracted into
+ * Module 6 — the two pure checks `NewMealActivity` needs before it may launch the system
+ * camera: `CAMERA` permission granted, and some app on the device resolving the image-capture
+ * intent. Failing either one has to leave the screen usable rather than crashing, so the
+ * capture button stays available for a retry. Both checks are extracted into
  * [UIHelper] instead of living in the Activity so they are testable without the Activity
  * harness the project does not have (see [MealPhotoUiStateTest] for that same reasoning).
  *
