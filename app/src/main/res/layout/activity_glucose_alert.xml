@@ -35,6 +35,16 @@
             android:gravity="center" android:textColor="#8CFFFFFF" android:textSize="14sp" android:textStyle="bold"
             tools:text="mg/dL · faixa alvo 70–180"/>
 
+        <!-- Module 7: best-effort location for the alert (ResolveAlertLocationUseCase). Gone
+             when there is nothing to show — off preference, no fix, resolution still pending
+             with nothing resolved yet. -->
+        <TextView android:id="@+id/tvAlertLocation"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:gravity="center"
+            android:textColor="#8CFFFFFF" android:textSize="11sp" android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="localizando…" tools:visibility="visible"/>
+
         <!-- Modo AUTO: quem já recebeu -->
         <LinearLayout android:id="@+id/llSentTo"
             android:layout_width="match_parent" android:layout_height="wrap_content"
