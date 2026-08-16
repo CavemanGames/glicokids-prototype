@@ -11,10 +11,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * b20 — the one add/edit contact dialog, shared by every entry point that needs it:
- * "+ Adicionar pessoa" and "Editar" in [SupportNetworkActivity], and the "número fora
- * da rede" shortcut in [ReceivedMessagesActivity]. One dialog means one set of
- * validation rules — [SupportNetworkViewModel.validateContact] stays the only authority
- * regardless of which screen opened it.
+ * "+ Adicionar pessoa" and "Editar" in [SupportNetworkActivity]. One dialog means one
+ * set of validation rules — [SupportNetworkViewModel.validateContact] stays the only
+ * authority regardless of which screen opened it.
  */
 object ContactDialog {
 

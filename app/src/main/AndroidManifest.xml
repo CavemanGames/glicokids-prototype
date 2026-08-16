@@ -12,12 +12,10 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Module 6 · communication: SEND_SMS/RECEIVE_SMS back the SMS gateway and receiver,
-         POST_NOTIFICATIONS is required on targetSdk 34 or the incoming-message notification
-         is silently dropped. The activities and the SmsReceiver these permissions serve are
-         declared later, together with the classes that implement them. -->
+    <!-- Module 6 · communication: SEND_SMS backs the SMS gateway used to alert the support
+         network and to share the 7-day summary. POST_NOTIFICATIONS is required on targetSdk 34
+         or a posted notification is silently dropped. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
@@ -101,18 +99,6 @@
             android:name=".presentation.kids.GlucoseAlertActivity"
             android:label="Alerta de glicemia"
             android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".presentation.parents.ReceivedMessagesActivity"
-            android:label="Transmissões recebidas"
-            android:screenOrientation="portrait" />
-
-        <receiver android:name=".data.sms.SmsReceiver" android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter>
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

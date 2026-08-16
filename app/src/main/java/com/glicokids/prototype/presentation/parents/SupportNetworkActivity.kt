@@ -93,10 +93,6 @@ class SupportNetworkActivity : AppCompatActivity() {
             awaitingSummaryShare = true
             viewModel.shareSummary()
         }
-
-        binding.rowReceivedMessages.setOnClickListener {
-            UIHelper.navigateTo(this, ReceivedMessagesActivity::class.java)
-        }
     }
 
     private fun observeViewModel() {
@@ -118,10 +114,6 @@ class SupportNetworkActivity : AppCompatActivity() {
                     if (!sent) UIHelper.showToast(this, "Nenhum aplicativo de SMS encontrado no aparelho")
                 }
             }
-        }
-
-        viewModel.receivedMessageCount.observe(this) { count ->
-            binding.tvReceivedCount.text = "$count ›"
         }
     }
 
