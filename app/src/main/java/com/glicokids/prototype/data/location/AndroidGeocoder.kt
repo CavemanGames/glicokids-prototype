@@ -5,9 +5,12 @@ import android.location.Address
 import android.location.Geocoder
 import android.os.Build
 import android.util.Log
+import com.glicokids.prototype.data.remote.NominatimXmlParser
 import com.glicokids.prototype.domain.model.GeoPoint
 import com.glicokids.prototype.domain.model.LocationTech
+import com.glicokids.prototype.domain.model.NetworkResult
 import com.glicokids.prototype.domain.repository.GeocodingRepository
+import com.glicokids.prototype.domain.repository.HttpClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import java.util.Locale
@@ -39,15 +42,30 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Both branches, and [Geocoder.isPresent] up front, are wrapped so nothing here ever throws:
  * no network, no geocoding service on the device (common without Play Services), a query with
  * no match — all of it is `null`, per the [GeocodingRepository] contract, never an exception.
+ *
+ * Module 7 — [reverse] chains a second attempt through [HttpClient]/[NominatimXmlParser] when
+ * the platform geocoder above comes back with nothing. This exists because of what field
+ * validation actually showed: the platform [Geocoder] returns empty on an emulator without Play
+ * Services, and on some real devices too — without a fallback, the address on the glucose alert
+ * and on the nearby-help map simply would not have appeared during that validation. Nominatim
+ * asks for at most one request per second and a descriptive `User-Agent`; both are safe defaults
+ * here because this call only ever runs when the platform geocoder already failed, which keeps
+ * it rare by construction rather than needing a rate limiter of its own. [forward] is untouched —
+ * nothing in the field validation showed the same gap on that path, so no fallback was added
+ * there.
  */
 @Singleton
 class AndroidGeocoder @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val httpClient: HttpClient
 ) : GeocodingRepository {
 
     private val geocoder: Geocoder by lazy { Geocoder(context, Locale.getDefault()) }
 
-    override suspend fun reverse(lat: Double, lng: Double): String? {
+    override suspend fun reverse(lat: Double, lng: Double): String? =
+        reverseWithPlatform(lat, lng) ?: reverseWithNominatim(lat, lng)
+
+    private suspend fun reverseWithPlatform(lat: Double, lng: Double): String? {
         if (!Geocoder.isPresent()) return null
         return try {
             resolveAddresses(
@@ -58,6 +76,13 @@ class AndroidGeocoder @Inject constructor(
             Log.w(TAG, "Reverse geocoding failed", e)
             null
         }
+    }
+
+    private suspend fun reverseWithNominatim(lat: Double, lng: Double): String? {
+        val url = "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=xml"
+        val response = httpClient.get(url, NOMINATIM_USER_AGENT)
+        val body = (response as? NetworkResult.Success)?.data ?: return null
+        return NominatimXmlParser.parseAddress(body)
     }
 
     override suspend fun forward(query: String): GeoPoint? {
@@ -114,5 +139,6 @@ class AndroidGeocoder @Inject constructor(
         private const val TAG = "GlicoKids_Geocoder"
         private const val MAX_RESULTS = 1
         private const val GEOCODE_TIMEOUT_MILLIS = 8_000L
+        private const val NOMINATIM_USER_AGENT = "GlicoKids/1.0 (academic prototype)"
     }
 }
