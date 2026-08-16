@@ -16,6 +16,12 @@
          network and to share the 7-day summary. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
 
+    <!-- Module 7 · location: needed to center the map on the child's current position and to
+         show nearby points of interest. Coarse is requested alongside fine so the app still
+         works if the user only grants the approximate location. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
          entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent
          return empty even when a camera app is installed, because the OS hides other packages
@@ -36,6 +42,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GlicoKids">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".presentation.SplashActivity"

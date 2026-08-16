@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,6 +7,19 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("androidx.navigation.safeargs.kotlin")
 }
+
+// The Maps API key is a developer-local secret, never committed. It lives in
+// local.properties (git-ignored) and falls back to a recognizable placeholder
+// so a fresh clone or the CI — neither of which has local.properties — still
+// resolves the manifest placeholder and builds; the UI can detect the
+// placeholder at runtime and degrade instead of showing a blank gray map.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: "MISSING_MAPS_API_KEY"
 
 android {
     namespace = "com.glicokids.prototype"
@@ -18,6 +33,9 @@ android {
         versionName = "1.0-prototype"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
     }
 
     buildTypes {
@@ -38,6 +56,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
     testOptions {
         unitTests {
@@ -62,6 +81,12 @@ dependencies {
 
     // --- Security ---
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // --- Maps & Location (Module 7 foundation) ---
+    // Pinned versions: anything newer pulls in androidx artifacts built against
+    // SDK 35 and forces compileSdk = 35, which this project isn't ready for yet.
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 
     // --- Persistência (Módulo 5): SQLiteOpenHelper escrito à mão + SharedPreferences.
     //     Room é PROIBIDO neste projeto (requisito acadêmico) — nenhuma dependência dele aqui. ---
