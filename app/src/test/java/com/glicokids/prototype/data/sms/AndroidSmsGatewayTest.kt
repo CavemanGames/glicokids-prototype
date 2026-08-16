@@ -30,7 +30,7 @@ class AndroidSmsGatewayTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val gateway = AndroidSmsGateway(context)
 
-    // Etapa D: sendTextMessage is now suspend and waits for the sentIntent broadcast, which
+    // sendTextMessage suspends and waits for the sentIntent broadcast, which
     // ShadowSmsManager records but never fires on its own (unlike a real device). This launch
     // uses Dispatchers.Unconfined the same way GlucoseAlertViewModelTest does for its own send
     // path: it runs eagerly on this thread up to the first real suspension point — which lands
@@ -78,7 +78,7 @@ class AndroidSmsGatewayTest {
         assertThat(result).isFalse()
     }
 
-    // --- Field regression (Module 6 Etapa D): a physical device sent "SMS ENVIADO" and
+    // --- Field regression found on a physical device: it showed "SMS ENVIADO" and
     // wrote the throttle for a message the carrier silently dropped. `sendTextMessage` is
     // asynchronous: no exception at the call site only means the request reached the radio,
     // not that the carrier accepted it. A carrier rejection, no-service state or invalid PDU

@@ -22,10 +22,10 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
+    <!-- Android 11+ package visibility: without declaring this <queries>
          entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent
          return empty even when a camera app is installed, because the OS hides other packages
-         from us by default (`.artifacts/SPEC-camera-captura-real.md` §3b/§7). -->
+         from us by default. -->
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
