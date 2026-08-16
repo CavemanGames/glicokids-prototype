@@ -15,6 +15,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import com.glicokids.prototype.R
 import com.glicokids.prototype.databinding.ActivityAlertMapBinding
+import com.glicokids.prototype.domain.model.HealthPlace
+import com.glicokids.prototype.domain.model.HealthPlaceType
 import com.glicokids.prototype.domain.model.LocationTech
 import com.glicokids.prototype.util.UIHelper
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -26,6 +28,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Module 7 — b-map. Purely the presentation layer: every decision (what the last alert was,
@@ -49,8 +52,10 @@ class AlertMapActivity : AppCompatActivity() {
     private var lastAlertMarker: Marker? = null
     private var selectedMarker: Marker? = null
     private var followMarker: Marker? = null
+    private var nearbyPlaceMarkers: List<Marker> = emptyList()
     private var renderedLastAlertPoint: MapPoint? = null
     private var renderedSelectedPoint: MapPoint? = null
+    private var renderedNearbyPlaces: List<HealthPlace>? = null
 
     /**
      * Asked once, on open, same molde as [SupportNetworkActivity]'s SEND_SMS request — the
@@ -106,6 +111,10 @@ class AlertMapActivity : AppCompatActivity() {
         binding.swFollowLocation.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setFollowingLocation(isChecked)
         }
+
+        binding.btnSearchNearbyHelp.setOnClickListener {
+            viewModel.searchNearbyHealthPlaces()
+        }
     }
 
     private fun observeViewModel() {
@@ -115,6 +124,7 @@ class AlertMapActivity : AppCompatActivity() {
             renderLastAlert(state)
             renderFollow(state)
             renderTechReadings(state.technologyReadings)
+            renderNearbyPlaces(state)
             renderMapContent(state)
         }
     }
@@ -200,6 +210,26 @@ class AlertMapActivity : AppCompatActivity() {
             followMarker?.remove()
             followMarker = null
         }
+
+        // Requirement 7 — one marker per nearby health place, on a hue (green) that belongs to
+        // neither the last-alert marker (red) nor the followed-position marker (azure): a
+        // parent glancing at the map should never confuse "where the child was" with "where
+        // help is". Color alone is never the only distinguisher — title/snippet carry the same
+        // name and type shown in the list below, readable from a tap on any of these pins.
+        val places = state.nearbyHealthPlaces
+        if (places != renderedNearbyPlaces) {
+            renderedNearbyPlaces = places
+            nearbyPlaceMarkers.forEach { it.remove() }
+            nearbyPlaceMarkers = places.mapNotNull { place ->
+                map.addMarker(
+                    MarkerOptions()
+                        .position(LatLng(place.lat, place.lng))
+                        .title(placeTypeLabel(place.type))
+                        .snippet("${place.name} · ${formatDistance(place.distanceMeters)}")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                )
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -284,6 +314,67 @@ class AlertMapActivity : AppCompatActivity() {
         LocationTech.UNKNOWN -> "Desconhecida"
     }
 
+    /** Requirement 7 — the search is on demand only; [AlertMapViewModel.searchNearbyHealthPlaces]
+     * never runs on its own, so nothing here needs to poll. The button stays clickable-looking
+     * but [View.isEnabled] false and dimmed while [AlertMapUiState.isSearchingNearbyPlaces] is
+     * true, so a caregiver tapping twice cannot stack a second lookup on top of one already in
+     * flight; the progress row is what actually tells them something is happening. Every
+     * pt-BR message this screen shows for the search — including the empty-result and
+     * no-anchor-point cases — is read straight off [AlertMapUiState.nearbyPlacesMessage] rather
+     * than duplicated here, since [AlertMapViewModel] already owns that text. */
+    private fun renderNearbyPlaces(state: AlertMapUiState) {
+        binding.btnSearchNearbyHelp.isEnabled = !state.isSearchingNearbyPlaces
+        binding.btnSearchNearbyHelp.alpha = if (state.isSearchingNearbyPlaces) 0.5f else 1f
+        binding.rowSearchingNearbyPlaces.visibility =
+            if (state.isSearchingNearbyPlaces) View.VISIBLE else View.GONE
+
+        binding.tvNearbyPlacesMessage.visibility =
+            if (state.nearbyPlacesMessage != null) View.VISIBLE else View.GONE
+        binding.tvNearbyPlacesMessage.text = state.nearbyPlacesMessage.orEmpty()
+
+        binding.llNearbyPlaces.removeAllViews()
+        val density = resources.displayMetrics.density
+        state.nearbyHealthPlaces.forEach { place ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, (8 * density).toInt(), 0, (8 * density).toInt())
+                contentDescription =
+                    "${place.name}, ${placeTypeLabel(place.type)}, a ${formatDistance(place.distanceMeters)}"
+            }
+            val nameView = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                text = place.name
+                setTextColor(ResourcesCompat.getColor(resources, R.color.ink, null))
+                textSize = 13f
+                setTypeface(typeface, Typeface.BOLD)
+            }
+            val detailView = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                text = "${placeTypeLabel(place.type)} · ${formatDistance(place.distanceMeters)}"
+                setTextColor(ResourcesCompat.getColor(resources, R.color.text_muted_light, null))
+                textSize = 11.5f
+                setTypeface(typeface, Typeface.BOLD)
+            }
+            row.addView(nameView)
+            row.addView(detailView)
+            binding.llNearbyPlaces.addView(row)
+        }
+    }
+
+    private fun placeTypeLabel(type: HealthPlaceType): String = when (type) {
+        HealthPlaceType.HOSPITAL -> "Hospital"
+        HealthPlaceType.PHARMACY -> "Farmácia"
+        HealthPlaceType.CLINIC -> "Clínica"
+        HealthPlaceType.DOCTOR -> "Consultório"
+        HealthPlaceType.UNKNOWN -> "Serviço de saúde"
+    }
+
     /** Locale.US on purpose — same reasoning as [AlertMapViewModel]'s own formatter: a pt-BR
      * locale's comma decimal separator would collide with the comma already separating lat/lng. */
     private fun formatCoordinate(lat: Double, lng: Double): String =
@@ -291,5 +382,20 @@ class AlertMapActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_ZOOM = 15f
+        private const val METERS_PER_KILOMETER = 1000.0
+
+        /** Requirement 7 — readable distance for a nearby health place: whole meters under a
+         * kilometer, one decimal of kilometers from there on. A pure function on purpose (no
+         * `Context`, no view) so it stays testable without launching this Activity, which
+         * `ActivityScenario` cannot do on this screen — Robolectric has no shadow for
+         * [GoogleMap] itself. `pt-BR` on purpose for the comma decimal separator a caregiver
+         * reading this screen expects; unlike [formatCoordinate], there is no adjacent
+         * comma-separated pair here for it to collide with. */
+        fun formatDistance(distanceMeters: Double): String =
+            if (distanceMeters < METERS_PER_KILOMETER) {
+                "${distanceMeters.roundToInt()} m"
+            } else {
+                String.format(Locale("pt", "BR"), "%.1f km", distanceMeters / METERS_PER_KILOMETER)
+            }
     }
 }
