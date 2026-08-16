@@ -2,6 +2,7 @@ package com.glicokids.prototype.di
 
 import android.content.Context
 import android.location.LocationManager
+import com.glicokids.prototype.BuildConfig
 import com.glicokids.prototype.data.location.AndroidGeocoder
 import com.glicokids.prototype.data.location.FusedLocationProvider
 import com.glicokids.prototype.domain.repository.GeocodingRepository
@@ -14,6 +15,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -54,5 +56,13 @@ abstract class LocationModule {
         fun provideLocationManager(
             @ApplicationContext context: Context
         ): LocationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        /** Module 7 (map screen) — [BuildConfig.MAPS_API_KEY] itself is the build's own
+         * missing-key sentinel already ("MISSING_MAPS_API_KEY" — see `app/build.gradle.kts`),
+         * so this needs no extra fallback of its own; [AlertMapViewModel][com.glicokids.prototype.presentation.parents.AlertMapViewModel]
+         * is what compares it against that sentinel. */
+        @Provides
+        @Named("mapsApiKey")
+        fun provideMapsApiKey(): String = BuildConfig.MAPS_API_KEY
     }
 }
