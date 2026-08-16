@@ -204,17 +204,21 @@ in the app: the call was accepted, the result intent came back, and the reason c
 telephony. The alert screen reports exactly that — it does not claim the message was sent, does
 not start the cooldown, and does not offer to resend something that never left.
 
-## 7. Quality Assurance & DevOps
+## 7. Running the Map
+
+Module 7 adds Google Maps to the app, which means anyone building it from source needs their own API key — none is bundled with the repository. Create a project in the Google Cloud Console, enable the **Maps SDK for Android**, then create an API key and restrict it to Android apps, listing the package name (`com.glicokids.prototype`) and the SHA-1 fingerprint of your own debug certificate (`./gradlew signingReport` prints it). Drop the key into `local.properties` at the repository root as `MAPS_API_KEY=YOUR_KEY_HERE`; that file is git-ignored and is never committed. One thing that trips people up: the Google Maps Platform requires an active billing account on the Cloud project even to stay within the free tier, and a key created without one is silently rejected — the map fails to render exactly as it would with no key at all, which makes the two cases easy to confuse. Building and running without a key is expected to work — it's what CI does — the map view just won't render anything.
+
+## 8. Quality Assurance & DevOps
 - **Gitflow Strategy**: Professional branch structure (`main`, `staging`, `develop`).
 - **CI/CD Pipeline**: GitHub Actions configured for automated build validation and JUnit testing on every Pull Request.
 - **Branch Protection**: Strict rules and bypass lists implemented to ensure code integrity.
 
-## 8. Test Credentials (Prototype Only)
+## 9. Test Credentials (Prototype Only)
 To evaluate the prototype, use the following mocked credentials:
 - **Parent Area PIN**: `1234`
 - **Simulated Child Name**: `Lucas`
 
-## 9. Copyright & Licensing
+## 10. Copyright & Licensing
 
 Copyright © 2026 Luiz Augusto Melo. All rights reserved.
 
