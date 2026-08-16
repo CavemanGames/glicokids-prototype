@@ -96,6 +96,74 @@ class BuildAlertMessageUseCaseTest {
         assertThat(manual).doesNotContain("sensor")
     }
 
+    // --- Module 7 (RED): locationHint is a new, defaulted parameter ---
+
+    @Test
+    fun `message is byte for byte identical to the pre-location format when locationHint is omitted`() {
+        val timestamp = fixedTimestamp(hour = 9, minute = 41)
+        val expected = "GlicoKids: Lucas M. está com 54 mg/dL às ${expectedTime(timestamp)} — " +
+            "abaixo da faixa (70–180). Leitura do sensor, sem confirmação da criança. Ligue se puder."
+
+        val message = useCase.execute(
+            partialChildName = "Lucas M.",
+            value = 54,
+            timestampMillis = timestamp,
+            rangeMin = 70,
+            rangeMax = 180,
+            isHypo = true,
+            fromSensor = true
+        )
+
+        assertThat(message).isEqualTo(expected)
+    }
+
+    @Test
+    fun `message is byte for byte identical to the pre-location format when locationHint is explicitly null`() {
+        val timestamp = fixedTimestamp(hour = 9, minute = 41)
+
+        val omitted = useCase.execute(
+            partialChildName = "Lucas M.",
+            value = 54,
+            timestampMillis = timestamp,
+            rangeMin = 70,
+            rangeMax = 180,
+            isHypo = true,
+            fromSensor = true
+        )
+        val explicitNull = useCase.execute(
+            partialChildName = "Lucas M.",
+            value = 54,
+            timestampMillis = timestamp,
+            rangeMin = 70,
+            rangeMax = 180,
+            isHypo = true,
+            fromSensor = true,
+            locationHint = null
+        )
+
+        assertThat(explicitNull).isEqualTo(omitted)
+    }
+
+    // RED: BuildAlertMessageUseCase.execute ignores locationHint today — this fails until GREEN
+    // folds it into the returned text.
+    @Test
+    fun `message includes the location hint when one is provided, without dropping direction and range`() {
+        val message = useCase.execute(
+            partialChildName = "Lucas M.",
+            value = 54,
+            timestampMillis = fixedTimestamp(hour = 9, minute = 41),
+            rangeMin = 70,
+            rangeMax = 180,
+            isHypo = true,
+            fromSensor = true,
+            locationHint = "Rua Tal, 123 - São Paulo"
+        )
+
+        assertThat(message).contains("Rua Tal, 123 - São Paulo")
+        assertThat(message).contains("abaixo da faixa")
+        assertThat(message).contains("70–180")
+    }
+
     private fun fixedTimestamp(hour: Int, minute: Int): Long {
         val calendar = Calendar.getInstance()
         calendar.set(2026, Calendar.AUGUST, 8, hour, minute, 0)

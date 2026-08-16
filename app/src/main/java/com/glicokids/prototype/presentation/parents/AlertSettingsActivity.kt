@@ -48,6 +48,10 @@ class AlertSettingsActivity : AppCompatActivity() {
         binding.swRecoveryNotice.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setRecoveryNoticeEnabled(isChecked)
         }
+
+        binding.swIncludeLocation.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setIncludeLocation(isChecked)
+        }
     }
 
     private fun showThrottleDialog() {
@@ -77,6 +81,9 @@ class AlertSettingsActivity : AppCompatActivity() {
 
             if (binding.swRecoveryNotice.isChecked != state.recoveryNoticeEnabled) {
                 binding.swRecoveryNotice.isChecked = state.recoveryNoticeEnabled
+            }
+            if (binding.swIncludeLocation.isChecked != state.includeLocation) {
+                binding.swIncludeLocation.isChecked = state.includeLocation
             }
         }
     }

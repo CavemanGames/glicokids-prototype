@@ -28,7 +28,9 @@ class AlertSettingsViewModel @Inject constructor(
         val recoveryNoticeEnabled: Boolean,
         val hypoLimit: Int,
         val hyperLimit: Int,
-        val recipientCount: Int
+        val recipientCount: Int,
+        /** Module 7 — whether the alert SMS carries the child's approximate address. */
+        val includeLocation: Boolean
     )
 
     private val _uiState = MutableLiveData<AlertSettingsUiState>()
@@ -58,6 +60,11 @@ class AlertSettingsViewModel @Inject constructor(
         publishState()
     }
 
+    fun setIncludeLocation(enabled: Boolean) {
+        prefs.alertIncludeLocation = enabled
+        publishState()
+    }
+
     private fun publishState() {
         _uiState.value = AlertSettingsUiState(
             hypoMode = prefs.alertModeHypo,
@@ -66,7 +73,8 @@ class AlertSettingsViewModel @Inject constructor(
             recoveryNoticeEnabled = prefs.alertOnRecovery,
             hypoLimit = prefs.rangeMin,
             hyperLimit = prefs.rangeMax,
-            recipientCount = dbHelper.getAlertRecipients().size
+            recipientCount = dbHelper.getAlertRecipients().size,
+            includeLocation = prefs.alertIncludeLocation
         )
     }
 }

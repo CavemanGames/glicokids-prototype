@@ -237,8 +237,23 @@
                     android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
                     android:text="Avisar quando voltar à meta"
                     android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/swIncludeLocation"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp"
+                    android:text="Enviar localização aproximada no alerta"
+                    android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Module 7: consent is ON by default (AppPreferences.DEFAULT_ALERT_INCLUDE_LOCATION),
+             so the screen has to say so out loud instead of leaving it buried in a switch. -->
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:background="@drawable/bg_banner_consent"
+            android:paddingHorizontal="14dp" android:paddingVertical="11dp"
+            android:text="O endereço aproximado da criança é enviado junto do alerta para a rede de apoio. Você pode desligar isso a qualquer momento no interruptor acima."
+            android:textColor="#8A6D00" android:textSize="11sp" android:textStyle="bold"
+            android:lineSpacingMultiplier="1.35"/>
 
         <TextView android:id="@+id/tvLimitsSource"
             android:layout_width="match_parent" android:layout_height="wrap_content"

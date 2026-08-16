@@ -12,6 +12,7 @@ import com.glicokids.prototype.domain.model.AlertMode
 import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.domain.repository.SmsGateway
 import com.glicokids.prototype.domain.usecase.BuildAlertMessageUseCase
+import com.glicokids.prototype.domain.usecase.ResolveAlertLocationUseCase
 import com.glicokids.prototype.domain.usecase.ShouldAutoAlertUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +41,16 @@ data class GlucoseAlertUiState(
     val showThrottleNotice: Boolean,
     /** Non-null only after a real send attempt (recipients existed) reached nobody — e.g.
      * SEND_SMS revoked. Null both before any attempt and after a successful one. */
-    val sendFailedMessage: String?
+    val sendFailedMessage: String?,
+    /** Module 7 — best-effort address for the alert, once [ResolveAlertLocationUseCase]
+     * resolves one. Null before any resolution, when consent is off, or when nothing could be
+     * resolved within its budget. Defaulted so every existing caller of this constructor keeps
+     * compiling unchanged. */
+    val locationLabel: String? = null,
+    /** Module 7 — true while an alert's location resolution has not settled yet, so the screen
+     * has something to show during the async wait. Defaulted for the same reason as
+     * [locationLabel]. */
+    val isLocating: Boolean = false
 )
 
 /** One line of the "already sent" list — name, relationship and when it went out. */
@@ -66,7 +76,10 @@ class GlucoseAlertViewModel @Inject constructor(
     private val reportStorage: ReportStorage,
     private val smsGateway: SmsGateway,
     private val shouldAutoAlertUseCase: ShouldAutoAlertUseCase,
-    private val buildAlertMessageUseCase: BuildAlertMessageUseCase
+    private val buildAlertMessageUseCase: BuildAlertMessageUseCase,
+    // Module 7: injected and now consulted from start() below — a best-effort address that
+    // rides along in the alert, never a precondition for it.
+    private val resolveAlertLocationUseCase: ResolveAlertLocationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData<GlucoseAlertUiState>()
@@ -81,6 +94,12 @@ class GlucoseAlertViewModel @Inject constructor(
      * that path never sees the direction again. */
     private var pendingImOkButtonText: String = ""
 
+    /** Module 7 — whatever [resolveAlertLocationUseCase] managed to resolve for the alert
+     * currently in flight, read by [send] so a manual [confirmSend] carries the same location
+     * (or lack of one) the automatic path already saw. Null before any resolution, when the
+     * preference is off, or when nothing resolved in time. */
+    private var pendingLocationLabel: String? = null
+
     fun start(
         value: Int,
         timestampMillis: Long,
@@ -89,19 +108,13 @@ class GlucoseAlertViewModel @Inject constructor(
     ) {
         val direction = AlertDirection.from(value, prefs.rangeMin, prefs.rangeMax)
         val mode = if (direction == AlertDirection.HYPO) prefs.alertModeHypo else prefs.alertModeHyper
-
-        val message = buildAlertMessageUseCase.execute(
-            partialChildName = reportStorage.anonymizedName(prefs.childName),
-            value = value,
-            timestampMillis = timestampMillis,
-            rangeMin = prefs.rangeMin,
-            rangeMax = prefs.rangeMax,
-            isHypo = direction == AlertDirection.HYPO,
-            fromSensor = source == ReadingSource.SENSOR
-        )
-        pendingMessage = message
         pendingImOkButtonText = imOkButtonText(direction)
+        pendingLocationLabel = null
 
+        // Decided up front — it only depends on source/direction/modes/throttle, never on the
+        // message text or the location — so start() knows before touching either of them
+        // whether this alert is about to leave the screen (auto-send) or sit on it waiting for
+        // a caregiver tap (suggest/off).
         val shouldSend = shouldAutoAlertUseCase.execute(
             source = source,
             direction = direction,
@@ -111,6 +124,70 @@ class GlucoseAlertViewModel @Inject constructor(
             now = nowMillis,
             throttleMin = prefs.alertThrottleMin
         )
+
+        val includeLocation = prefs.alertIncludeLocation
+        if (includeLocation) {
+            // Published before the location resolution is awaited below, on both the
+            // automatic and the suggest/off paths. An automatic send can now take up to
+            // ResolveAlertLocationUseCase.BUDGET_MILLIS before anything reaches the screen —
+            // that wait is exactly when the caregiver most needs to see something is happening,
+            // not less than on the confirmation path.
+            _uiState.value = GlucoseAlertUiState(
+                messagePreview = "",
+                sentTo = emptyList(),
+                showConfirmActions = false,
+                throttleMin = prefs.alertThrottleMin,
+                imOkButtonText = pendingImOkButtonText,
+                showResendAction = false,
+                showThrottleNotice = false,
+                sendFailedMessage = null,
+                locationLabel = null,
+                isLocating = true
+            )
+            // Awaited on purpose: the message must carry the resolved address (or the lack of
+            // one) whenever it is built, so buildMessageAndSend only runs once this settles.
+            // Safe to await unconditionally because ResolveAlertLocationUseCase owns its own
+            // BUDGET_MILLIS ceiling over the whole fix + reverse-geocode chain and always
+            // returns — see its kdoc and ResolveAlertLocationUseCaseTest — so the alert is
+            // still guaranteed to reach every recipient, just no more than BUDGET_MILLIS later.
+            viewModelScope.launch {
+                val snapshot = resolveAlertLocationUseCase.execute(true)
+                if (snapshot != null) {
+                    pendingLocationLabel = snapshot.label
+                    prefs.saveLastAlertLocation(
+                        lat = snapshot.point.lat,
+                        lng = snapshot.point.lng,
+                        label = snapshot.label,
+                        atMillis = nowMillis
+                    )
+                }
+                buildMessageAndSend(value, timestampMillis, source, nowMillis, direction, mode, shouldSend)
+            }
+        } else {
+            buildMessageAndSend(value, timestampMillis, source, nowMillis, direction, mode, shouldSend)
+        }
+    }
+
+    private fun buildMessageAndSend(
+        value: Int,
+        timestampMillis: Long,
+        source: ReadingSource,
+        nowMillis: Long,
+        direction: AlertDirection,
+        mode: AlertMode,
+        shouldSend: Boolean
+    ) {
+        val message = buildAlertMessageUseCase.execute(
+            partialChildName = reportStorage.anonymizedName(prefs.childName),
+            value = value,
+            timestampMillis = timestampMillis,
+            rangeMin = prefs.rangeMin,
+            rangeMax = prefs.rangeMax,
+            isHypo = direction == AlertDirection.HYPO,
+            fromSensor = source == ReadingSource.SENSOR,
+            locationHint = pendingLocationLabel
+        )
+        pendingMessage = message
 
         if (shouldSend) {
             send(message, nowMillis)
@@ -123,7 +200,9 @@ class GlucoseAlertViewModel @Inject constructor(
                 imOkButtonText = pendingImOkButtonText,
                 showResendAction = false,
                 showThrottleNotice = isThrottleWindowActive(nowMillis),
-                sendFailedMessage = null
+                sendFailedMessage = null,
+                locationLabel = pendingLocationLabel,
+                isLocating = false
             )
         }
     }
@@ -192,7 +271,9 @@ class GlucoseAlertViewModel @Inject constructor(
                 imOkButtonText = pendingImOkButtonText,
                 showResendAction = sentTo.isNotEmpty(),
                 showThrottleNotice = sentTo.isNotEmpty() || isThrottleWindowActive(nowMillis),
-                sendFailedMessage = sendFailedMessage
+                sendFailedMessage = sendFailedMessage,
+                locationLabel = pendingLocationLabel,
+                isLocating = false
             )
         }
     }
