@@ -189,8 +189,8 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
-        // Fixture correction for Etapa D GREEN: sentTo is now filtered by the real send
-        // result, and the default relaxed mock returns false for an unstubbed suspend call.
+        // sentTo is filtered by the real send result, and the default relaxed mock returns
+        // false for an unstubbed suspend call.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
@@ -361,7 +361,7 @@ class GlucoseAlertViewModelTest {
         assertThat(directionSlot.captured).isEqualTo(AlertDirection.HYPER)
     }
 
-    // --- Async send result must gate what counts as "sent" (Etapa D field regression) ---
+    // --- Async send result must gate what counts as "sent" ---
     //
     // A physical-device test showed "SMS ENVIADO AUTOMATICAMENTE" and a written throttle for
     // a message the carrier silently dropped, because AndroidSmsGateway.sendTextMessage
@@ -369,14 +369,13 @@ class GlucoseAlertViewModelTest {
     // symptoms visible at this ViewModel: the throttle must not survive a send that failed,
     // and a recipient whose send failed must not show up in the "already sent" list.
     //
-    // NOTE for GREEN (done): fixing this also flipped three other tests that used the default
-    // `relaxed` smsGateway mock, which returns `false` for an unstubbed call — `use case true
-    // sends to every alert recipient...` (~163), `use case true records last_alert_at` (~180)
-    // and `confirming the suggestion sends to every recipient...` (~234). Each now stubs
-    // `coEvery { smsGateway.sendTextMessage(any(), any()) } returns true` for a reason
-    // unrelated to this bug: sentTo/lastAlertAt are filtered by the actual send result.
-    // SmsGateway.sendTextMessage is `suspend` (Etapa D), so every/verify on it became
-    // coEvery/coVerify throughout this file.
+    // Fixing that also flipped three other tests that relied on the default `relaxed`
+    // smsGateway mock, which returns `false` for an unstubbed call — the ones covering an
+    // automatic send to every recipient, the throttle write, and confirming a suggestion.
+    // Each now stubs `coEvery { smsGateway.sendTextMessage(any(), any()) } returns true` for a
+    // reason unrelated to this bug: sentTo and lastAlertAt are filtered by the actual send
+    // result. Since sendTextMessage suspends, every/verify on it became coEvery/coVerify
+    // throughout this file.
 
     @Test
     fun `does not record last_alert_at when every send fails`() {

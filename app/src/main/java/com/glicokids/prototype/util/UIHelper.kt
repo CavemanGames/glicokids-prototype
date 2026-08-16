@@ -87,7 +87,7 @@ object UIHelper {
     }
 
     /**
-     * Module 6 (Etapa D) — b9 real camera capture (`SPEC-camera-captura-real.md` §3b/§7).
+     * Real camera capture on b9.
      * `NewMealActivity` checks this before launching `TakePicturePreview()`; a denied
      * permission never re-prompts, it just falls back to a toast.
      */
@@ -97,7 +97,7 @@ object UIHelper {
     }
 
     /**
-     * Module 6 (Etapa D) — same SPEC, same reasoning [dialPhone]/[sendSmsViaMessagingApp]
+     * Same reasoning [dialPhone]/[sendSmsViaMessagingApp]
      * already use for external hand-offs: check `resolveActivity` before launching so a
      * device with no camera app gets a toast instead of an `ActivityNotFoundException`.
      */
