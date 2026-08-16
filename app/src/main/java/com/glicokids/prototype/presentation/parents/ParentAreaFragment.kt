@@ -104,6 +104,11 @@ class ParentAreaFragment : Fragment() {
         binding.cvSupportNetwork.setOnClickListener {
             UIHelper.navigateTo(requireContext(), SupportNetworkActivity::class.java)
         }
+
+        // Module 7 (b-map) — same PIN protection, same navigation idiom.
+        binding.cvMap.setOnClickListener {
+            UIHelper.navigateTo(requireContext(), AlertMapActivity::class.java)
+        }
     }
 
     private fun observeViewModel() {
