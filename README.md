@@ -13,7 +13,7 @@ Managing Type 1 Diabetes in childhood requires constant mathematical calculation
 - **Dependency Injection**: Hilt
 - **Persistence**: `SharedPreferences` + `EncryptedSharedPreferences` (AES-256) + hand-written `SQLiteOpenHelper` (no Room)
 - **Navigation**: Navigation Component & Intents
-- **Device Communication**: `SmsManager` (native SMS), `Intent.ACTION_SENDTO` (`smsto:` and `mailto:`), `BroadcastReceiver` (incoming SMS), `NotificationManager`
+- **Device Communication**: `SmsManager` (native SMS), `Intent.ACTION_SENDTO` (`smsto:` and `mailto:`)
 
 ## 4. User Experience (UX)
 *   **Child Interface (Primary UI)**: Playful, colorful, and reward-focused. Features a central "Meal Mission" (photo capture), achievement panels (badges and XP), and daily challenges.
@@ -105,6 +105,14 @@ open the app.
 | 3 | Incoming SMS + notification | `BroadcastReceiver` (`SMS_RECEIVED`) + `NotificationChannel`/`NotificationManager` | Received Messages screen |
 | 4 | Email | `Intent.ACTION_SENDTO` (`mailto:`) with recipient, subject, and body pre-filled | Parent Area — "Send by email", recipients are contacts opted into the report |
 
+Requirement 3 was removed after this module shipped. It was built to prove the capability and did
+so — verified end to end on a physical device — but GlicoKids is not an SMS inbox manager, and the
+app has no synchronous channel back to a guardian, so a reply typed on their end had nowhere to
+land. The outbound directions (requirements 1, 2 and 4) are unchanged. Removed with it: the
+`RECEIVE_SMS` permission, the `SmsReceiver` broadcast receiver, the Received Messages screen, the
+`received_messages` table (dropped on upgrade to schema v4), and the notification channel that
+existed only to announce an incoming message.
+
 **Support Network in SQLite.** Unlike single-value settings, the support network is a list of
 people, each with their own permissions — it lives in its own `contacts` table (`glicokids.db`,
 schema v2) rather than in `SharedPreferences`. `relationship` is a required field (mother,
@@ -135,8 +143,8 @@ targets, including switches, meet a 48dp minimum touch area. Every icon that car
 has a `contentDescription` that states its current state (for example, "Ana, mother, receives
 SMS alerts"); purely decorative icons are marked as not important for accessibility. Glucose
 status is always paired with a text label, never communicated by color alone. The full flow
-from the Support Network screen through the alert and the received-message screen is navigable
-with TalkBack. A contrast check on this pass also caught `text_muted_light`, a token that fell
+from the Support Network screen through the alert is navigable with TalkBack. A contrast check
+on this pass also caught `text_muted_light`, a token that fell
 short of the 4.5:1 minimum against every light background it was used on; it is corrected and
 now held in place by an automated test.
 
@@ -173,17 +181,17 @@ Emulator note: the Android emulator does not deliver SMS to a real phone number 
 `sendTextMessage()` returning without an exception proves the call was made correctly (also
 covered by a `ShadowSmsManager` unit test), not that a message was received. Incoming SMS, by
 contrast, is testable end to end through the emulator's Extended Controls → Phone → Incoming
-SMS panel. Requirement 3 was verified end to end on a physical device: a message sent from a
-second line was captured by the receiver, matched against the support network, and displayed with
-the sender's name and relationship rather than a bare number.
+SMS panel. Requirement 3 had been verified end to end on a physical device before the receiver
+was removed: a message sent from a second line was captured by the receiver, matched against the
+support network, and displayed with the sender's name and relationship rather than a bare number.
 
 **SMS requires RCS to be turned off.** Modern messaging apps default to RCS, which travels over
-data and is end-to-end encrypted. RCS messages do not fire the `SMS_RECEIVED` broadcast — the only
-one Android exposes to an app that is not the device's default messaging app — so an incoming
-message never reaches the receiver, and an outgoing `SmsManager` call can be rerouted without
-confirmation. Both directions started working the moment chat features were disabled in the
-messaging app. This is a property of the transport, not of this app: any application that depends
-on SMS behaves the same way.
+data and is end-to-end encrypted. An outgoing `SmsManager` call can be silently rerouted onto RCS
+without confirmation; back when the app still received messages, RCS also blocked the
+`SMS_RECEIVED` broadcast the receiver depended on, so nothing arrived on that side either. Both
+directions started working the moment chat features were disabled in the messaging app. This is a
+property of the transport, not of this app: any application that depends on SMS behaves the same
+way.
 
 **Outgoing SMS was refused by the telephony layer on the test device.** With RCS disabled and
 `SEND_SMS` granted, the send still failed, and the result intent now records why:

@@ -54,16 +54,3 @@ data class Contact(
     val isPrimary: Boolean,
     val createdAt: Long
 )
-
-/**
- * An inbound SMS answer to an alert (`received_messages` table, schema v3). [contactId]
- * is null when the sender's phone matches no stored [Contact] — an unknown sender still
- * gets its message stored and shown, per [com.glicokids.prototype.data.sms.SmsReceiver].
- */
-data class ReceivedMessage(
-    val id: Long = 0,
-    val senderPhone: String,
-    val contactId: Long?,
-    val body: String,
-    val receivedAt: Long
-)

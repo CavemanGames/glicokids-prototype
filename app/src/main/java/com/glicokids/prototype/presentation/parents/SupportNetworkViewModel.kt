@@ -42,16 +42,12 @@ class SupportNetworkViewModel @Inject constructor(
     private val _summaryText = MutableLiveData<String?>()
     val summaryText: LiveData<String?> = _summaryText
 
-    private val _receivedMessageCount = MutableLiveData<Int>()
-    val receivedMessageCount: LiveData<Int> = _receivedMessageCount
-
     init {
         refresh()
     }
 
     private fun refresh() {
         _contacts.value = dbHelper.getContacts()
-        _receivedMessageCount.value = dbHelper.getReceivedMessageCount()
     }
 
     /**
