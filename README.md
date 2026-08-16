@@ -105,13 +105,13 @@ open the app.
 | 3 | Incoming SMS + notification | `BroadcastReceiver` (`SMS_RECEIVED`) + `NotificationChannel`/`NotificationManager` | Received Messages screen |
 | 4 | Email | `Intent.ACTION_SENDTO` (`mailto:`) with recipient, subject, and body pre-filled | Parent Area — "Send by email", recipients are contacts opted into the report |
 
-Requirement 3 was removed after this module shipped. GlicoKids is not an SMS inbox manager, and
-the app has no synchronous channel back to a guardian, so a reply typed on their end had nowhere
-to land inside the product. Requirements 1, 2 and 4 — the alert directions that actually go
-somewhere — are unchanged by this. The removal took the `RECEIVE_SMS` permission, the
-`SmsReceiver` broadcast receiver, the Received Messages screen, the `received_messages` table
-(dropped on upgrade to schema v4), and the notification channel/helper that existed only to
-announce an incoming message, with it.
+Requirement 3 was removed after this module shipped. It was built to prove the capability and did
+so — verified end to end on a physical device — but GlicoKids is not an SMS inbox manager, and the
+app has no synchronous channel back to a guardian, so a reply typed on their end had nowhere to
+land. The outbound directions (requirements 1, 2 and 4) are unchanged. Removed with it: the
+`RECEIVE_SMS` permission, the `SmsReceiver` broadcast receiver, the Received Messages screen, the
+`received_messages` table (dropped on upgrade to schema v4), and the notification channel that
+existed only to announce an incoming message.
 
 **Support Network in SQLite.** Unlike single-value settings, the support network is a list of
 people, each with their own permissions — it lives in its own `contacts` table (`glicokids.db`,
