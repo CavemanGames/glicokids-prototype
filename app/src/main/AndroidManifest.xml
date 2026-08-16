@@ -13,10 +13,8 @@
         android:maxSdkVersion="28" />
 
     <!-- Module 6 · communication: SEND_SMS backs the SMS gateway used to alert the support
-         network and to share the 7-day summary. POST_NOTIFICATIONS is required on targetSdk 34
-         or a posted notification is silently dropped. -->
+         network and to share the 7-day summary. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
          entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent

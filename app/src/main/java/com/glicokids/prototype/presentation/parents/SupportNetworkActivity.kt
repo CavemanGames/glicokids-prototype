@@ -41,16 +41,15 @@ class SupportNetworkActivity : AppCompatActivity() {
     private var awaitingSummaryShare = false
 
     /**
-     * SEND_SMS, RECEIVE_SMS and POST_NOTIFICATIONS asked together, once, on open — the
-     * screen never re-prompts and a denial only shows an explanatory toast; every row
-     * stays clickable either way.
+     * SEND_SMS asked once, on open — the screen never re-prompts and a denial only shows
+     * an explanatory toast; every row stays clickable either way.
      */
     private val requestPermissionsLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            if (results.values.any { granted -> !granted }) {
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
                 UIHelper.showToast(
                     this,
-                    "Sem essas permissões o app não consegue enviar SMS nem avisar sobre mensagens recebidas"
+                    "Sem a permissão de SMS o app não consegue enviar o alerta aos responsáveis"
                 )
             }
         }
@@ -60,13 +59,7 @@ class SupportNetworkActivity : AppCompatActivity() {
         binding = ActivitySupportNetworkBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        requestPermissionsLauncher.launch(
-            arrayOf(
-                Manifest.permission.SEND_SMS,
-                Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-        )
+        requestPermissionsLauncher.launch(Manifest.permission.SEND_SMS)
 
         contactAdapter = ContactAdapter(
             context = this,
