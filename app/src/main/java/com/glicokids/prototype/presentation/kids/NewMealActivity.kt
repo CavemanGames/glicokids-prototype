@@ -45,7 +45,7 @@ class NewMealActivity : AppCompatActivity() {
     @Inject lateinit var prefs: AppPreferences
     @Inject lateinit var dbHelper: GlicoKidsDbHelper
 
-    // Module 6 (Etapa D) — real camera capture (`.artifacts/SPEC-camera-captura-real.md` §3).
+    // Real camera capture on b9.
     // Permission is requested unconditionally in onCreate, same pattern as SupportNetworkActivity
     // (b19): a denial just falls back to a toast when the button is pressed, never a re-prompt.
     private val requestCameraPermissionLauncher =
@@ -57,7 +57,7 @@ class NewMealActivity : AppCompatActivity() {
 
     // TakePicturePreview() returns the Bitmap straight into the callback — no Uri, no
     // FileProvider, no file. The thumbnail lives only in memory for as long as this screen is
-    // open (SPEC §4/§7): it is never written to photoPath, never survives process recreation.
+    // open: it is never written to photoPath, never survives process recreation.
     private val takePictureLauncher =
         registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
             onPhotoCaptured(bitmap)
@@ -120,9 +120,9 @@ class NewMealActivity : AppCompatActivity() {
     }
 
     /**
-     * Module 6 (Etapa D) — `TakePicturePreview()` callback. `bitmap == null` means the user
-     * cancelled or the camera app failed; nothing on screen changes and no toast fires (SPEC
-     * §7 — that is not an error to flag). `bitmap != null` shows the real thumbnail and only
+     * `TakePicturePreview()` callback. `bitmap == null` means the user
+     * cancelled or the camera app failed; nothing on screen changes and no toast fires —
+     * that is not an error to flag. `bitmap != null` shows the real thumbnail and only
      * then runs the pre-existing simulated-carbs behaviour, unchanged.
      */
     private fun onPhotoCaptured(bitmap: Bitmap?) {
@@ -150,7 +150,7 @@ class NewMealActivity : AppCompatActivity() {
         binding.tvCarbsSource.visibility = View.VISIBLE
     }
 
-    /** Applies [MealPhotoUiState] to `ivMealPhoto`/`ivPhotoPlaceholder` (SPEC §6). */
+    /** Applies [MealPhotoUiState] to `ivMealPhoto`/`ivPhotoPlaceholder`. */
     private fun applyPhotoState(hasPhoto: Boolean) {
         val state = MealPhotoUiState.forPhoto(hasPhoto)
         binding.ivPhotoPlaceholder.visibility = if (state.placeholderVisible) View.VISIBLE else View.GONE
@@ -208,7 +208,7 @@ class NewMealActivity : AppCompatActivity() {
             carbsG = carbs,
             glucoseMgdl = glucose,
             bolusUi = dose,
-            photoPath = null, // Module 6 (Etapa D): the photo is real but lives only in memory, never on disk
+            photoPath = null, // The photo is real but lives only in memory, never on disk
             createdAt = System.currentTimeMillis()
         )
 

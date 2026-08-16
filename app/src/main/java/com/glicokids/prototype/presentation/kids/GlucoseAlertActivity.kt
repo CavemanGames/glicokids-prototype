@@ -36,7 +36,7 @@ class GlucoseAlertActivity : AppCompatActivity() {
 
     private val timeFormat = SimpleDateFormat("HH:mm", Locale("pt", "BR"))
 
-    /** Achado 5 (Etapa D): [tvSentHeader][observeViewModel] used to claim "AUTOMATICAMENTE"
+    /** [tvSentHeader][observeViewModel] used to claim "AUTOMATICAMENTE"
      * even on the SUGGEST path, where the caregiver had just tapped a button. Set the moment
      * [setupListeners] fires `confirmSend`, so the very next `sentTo`-carrying state can be
      * told apart from one the ViewModel produced entirely on its own in [GlucoseAlertViewModel.start]. */
@@ -163,7 +163,7 @@ class GlucoseAlertActivity : AppCompatActivity() {
             }
             lastSendFailedMessage = state.sendFailedMessage
 
-            // Achado 5 (Etapa D): sentTo only ever carries recipients whose send actually
+            // sentTo only ever carries recipients whose send actually
             // confirmed (GlucoseAlertViewModel.send filters by the real gateway result), so
             // whenever this card is visible the outcome shown below really is "enviado" —
             // the header just has to stop claiming "automatically" for a send the caregiver

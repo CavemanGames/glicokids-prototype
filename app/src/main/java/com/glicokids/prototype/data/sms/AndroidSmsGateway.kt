@@ -30,7 +30,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * can actually exercise — is worth more here than silencing a deprecation warning, so this
  * stays on [SmsManager.getDefault] on purpose instead of branching on `Build.VERSION.SDK_INT`.
  *
- * Etapa D field regression: a physical device showed "SMS ENVIADO" and wrote the throttle
+ * A physical device showed "SMS ENVIADO" and wrote the throttle
  * for a message the carrier silently dropped. `SmsManager.sendTextMessage` only confirms the
  * request reached the radio — a carrier rejection, no-service state or invalid PDU is
  * reported later, through the `sentIntent` broadcast, never as a thrown exception. Passing

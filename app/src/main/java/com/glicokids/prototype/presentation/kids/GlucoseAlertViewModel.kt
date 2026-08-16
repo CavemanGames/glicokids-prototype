@@ -229,8 +229,8 @@ class GlucoseAlertViewModel @Inject constructor(
 
     /**
      * Sends [message] to every alert recipient off the main thread. A failure for one
-     * recipient never stops the loop from reaching the next one, but — Etapa D field
-     * regression — a recipient only shows up in [SentAlertRecipient] once the carrier has
+     * recipient never stops the loop from reaching the next one, but a recipient only
+     * shows up in [SentAlertRecipient] once the carrier has
      * actually confirmed the send, and the throttle is only written when at least one send
      * confirms; if every send fails, `lastAlertAt` is left alone so the next reading can
      * try again instead of being silently throttled for a message nobody received.

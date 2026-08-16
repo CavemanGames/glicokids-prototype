@@ -239,7 +239,7 @@ class ParentAreaViewModel @Inject constructor(
      * Defect C — the summary card text for the support network, built purely from what
      * SQLite actually holds. Onboarding (b3) never ran, so `is_primary=0` on every row is
      * today's reality, not an edge case: the wording never mentions "responsável" unless a
-     * primary contact truly exists. Texts pinned in `.artifacts/DECISOES-PENDENTES-VALIDACAO.md`.
+     * primary contact truly exists.
      */
     internal fun buildSupportNetworkSummary(contacts: List<Contact>): String {
         if (contacts.isEmpty()) return "Nenhum contato cadastrado"

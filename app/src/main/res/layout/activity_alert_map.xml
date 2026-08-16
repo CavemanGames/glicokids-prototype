@@ -283,6 +283,66 @@
                         android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- Requirement 7 — health places near the last alert (or the current position,
+                 lacking that). Search is on demand only: btnSearchNearbyHelp is the single
+                 trigger, never anything automatic, since the lookup can take 5-15 seconds and
+                 has already proven unreliable. -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardCornerRadius="18dp" app:cardElevation="0dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:strokeWidth="1dp" app:strokeColor="#E3DAF7">
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:paddingBottom="6dp" android:text="AJUDA PRÓXIMA"
+                        android:textColor="@color/text_muted_light" android:textSize="12sp"
+                        android:textStyle="bold" android:letterSpacing="0.05"/>
+                    <TextView
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:text="hospitais, farmácias, clínicas e consultórios perto do último alerta"
+                        android:textColor="@color/text_muted_light" android:textSize="11sp" android:textStyle="bold"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSearchNearbyHelp"
+                        android:layout_width="match_parent" android:layout_height="52dp"
+                        android:insetTop="0dp" android:insetBottom="0dp"
+                        android:background="@drawable/bg_button_primary_3d" app:backgroundTint="@null"
+                        android:text="Buscar ajuda próxima" android:textColor="@android:color/white"
+                        android:textSize="13sp" android:textStyle="bold" android:textAllCaps="false"
+                        android:contentDescription="Buscar hospitais, farmácias, clínicas e consultórios perto"/>
+                    <LinearLayout
+                        android:id="@+id/rowSearchingNearbyPlaces"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:visibility="gone">
+                        <ProgressBar
+                            android:layout_width="18dp" android:layout_height="18dp"
+                            android:indeterminateTint="@color/primary"
+                            android:importantForAccessibility="no"/>
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp" android:text="Buscando serviços de saúde por perto…"
+                            android:textColor="@color/ink" android:textSize="13sp" android:textStyle="bold"/>
+                    </LinearLayout>
+                    <TextView
+                        android:id="@+id/tvNearbyPlacesMessage"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" android:visibility="gone"
+                        android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"
+                        android:lineSpacingMultiplier="1.3"/>
+                    <LinearLayout
+                        android:id="@+id/llNearbyPlaces"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>
