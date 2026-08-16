@@ -107,6 +107,11 @@
             android:name=".presentation.kids.GlucoseAlertActivity"
             android:label="Alerta de glicemia"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.AlertMapActivity"
+            android:label="Mapa de Alertas"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>
