@@ -11,13 +11,18 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Module 6 — proves that upgrading the database from schema v1 to v2 keeps the
- * user's existing history and only adds the `contacts` table.
+ * Module 6 — proves that upgrading the database across every schema version lands on
+ * the same v4 shape, keeping the user's existing history intact along the way.
  *
- * [GlicoKidsDbHelperTest] always opens the database already at v2 (a fresh Robolectric
- * sandbox has no pre-existing file), so it never exercises `onUpgrade` — that guarantee
- * lived only in a code comment until now. This class hand-builds a v1 database file the
- * way a real device would have it, then opens it through the current (v2) helper.
+ * [GlicoKidsDbHelperTest] always opens the database already at the current version (a
+ * fresh Robolectric sandbox has no pre-existing file), so it never exercises `onUpgrade`
+ * — that guarantee lived only in a code comment until now. This class hand-builds
+ * database files the way a real device at each prior version would have them, then
+ * opens them through the current helper.
+ *
+ * v4 drops `received_messages`: the app is no longer responsible for receiving SMS, so
+ * the upgrade path must destroy that table wherever it exists (v3) and never create it
+ * again (v1, v2, fresh install).
  */
 @RunWith(RobolectricTestRunner::class)
 class GlicoKidsDbMigrationTest {
@@ -26,12 +31,12 @@ class GlicoKidsDbMigrationTest {
     private val now = System.currentTimeMillis()
 
     @Test
-    fun `onUpgrade keeps existing readings, meals and medals and adds an empty contacts table`() {
+    fun `onUpgrade from v1 to v4 keeps history, adds contacts and never creates received_messages`() {
         seedV1DatabaseWithHistory()
 
         val dbHelper = GlicoKidsDbHelper(context)
         try {
-            val db = dbHelper.writableDatabase // opening a v1 file with a v2 helper drives onUpgrade
+            val db = dbHelper.writableDatabase // opening a v1 file with a v4 helper drives onUpgrade
             assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
 
             val readings = dbHelper.getGlucoseReadingsSince(0)
@@ -63,23 +68,79 @@ class GlicoKidsDbMigrationTest {
             )
             assertThat(contactId).isGreaterThan(0)
             assertThat(dbHelper.getContacts().map { it.name }).containsExactly("Ana")
+
+            assertThat(tableExists(db, "received_messages")).isFalse()
+        } finally {
+            dbHelper.close()
+        }
+    }
+
+    @Test
+    fun `onUpgrade from v2 to v4 keeps history and contacts and does not create received_messages`() {
+        seedV2DatabaseWithHistory()
+
+        val dbHelper = GlicoKidsDbHelper(context)
+        try {
+            val db = dbHelper.writableDatabase // opening a v2 file with a v4 helper drives onUpgrade
+            assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
+
+            assertThat(dbHelper.getGlucoseReadingsSince(0)).hasSize(1)
+            assertThat(dbHelper.getRecentMeals(10)).hasSize(1)
+            assertThat(dbHelper.getMedals()).hasSize(1)
+            assertThat(dbHelper.getContacts().map { it.name }).containsExactly("Carla")
+
+            assertThat(tableExists(db, "received_messages")).isFalse()
         } finally {
             dbHelper.close()
         }
     }
 
     /**
-     * A clean install (`onCreate`) must land on the exact same schema as an upgraded
-     * database (`onUpgrade`) — a classic hand-written-migration trap is a `contacts`
-     * table that only one of the two paths creates.
+     * The destructive step: a real v3 install has `received_messages` with data in it,
+     * and the upgrade to v4 must drop it while every other table survives untouched.
      */
     @Test
-    fun `a fresh install also creates the contacts table`() {
+    fun `onUpgrade from v3 to v4 drops received_messages and keeps history and contacts`() {
+        seedV3DatabaseWithHistory()
+
+        val dbHelper = GlicoKidsDbHelper(context)
+        try {
+            val db = dbHelper.writableDatabase // opening a v3 file with a v4 helper drives onUpgrade
+            assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
+
+            assertThat(tableExists(db, "received_messages")).isFalse()
+
+            val readings = dbHelper.getGlucoseReadingsSince(0)
+            assertThat(readings).hasSize(1)
+            assertThat(readings.single().valueMgdl).isEqualTo(88)
+
+            val meals = dbHelper.getRecentMeals(10)
+            assertThat(meals).hasSize(1)
+            assertThat(meals.single().label).isEqualTo("Café da manhã migrado")
+
+            val medals = dbHelper.getMedals()
+            assertThat(medals).hasSize(1)
+            assertThat(medals.single().code).isEqualTo("medalha_v3")
+
+            assertThat(dbHelper.getContacts().map { it.name }).containsExactly("Duda")
+        } finally {
+            dbHelper.close()
+        }
+    }
+
+    /**
+     * A clean install (`onCreate`) must land on the exact same schema as the upgrade
+     * chain — a classic hand-written-migration trap is a table that only one of the
+     * two paths creates (or, since v4, fails to drop).
+     */
+    @Test
+    fun `a fresh install lands on the same schema as the upgrade chain`() {
         val dbHelper = GlicoKidsDbHelper(context)
         try {
             val db = dbHelper.writableDatabase // no pre-existing file: this drives onCreate
             assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
             assertThat(dbHelper.getContacts()).isEmpty()
+            assertThat(tableExists(db, "received_messages")).isFalse()
 
             val contactId = dbHelper.insertContact(
                 Contact(
@@ -99,122 +160,12 @@ class GlicoKidsDbMigrationTest {
         }
     }
 
-    /**
-     * Module 6 — schema v3 adds `received_messages` (b23, incoming SMS). This proves the
-     * step from v2 lands cleanly: existing readings, meals, medals and contacts survive,
-     * and the new table is not just present but genuinely writable.
-     */
-    @Test
-    fun `onUpgrade from v2 to v3 keeps existing history and contacts and adds an empty received_messages table`() {
-        seedV2DatabaseWithHistory()
-
-        val dbHelper = GlicoKidsDbHelper(context)
-        try {
-            val db = dbHelper.writableDatabase // opening a v2 file with a v3 helper drives onUpgrade
-            assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
-
-            assertThat(dbHelper.getGlucoseReadingsSince(0)).hasSize(1)
-            assertThat(dbHelper.getRecentMeals(10)).hasSize(1)
-            assertThat(dbHelper.getMedals()).hasSize(1)
-            assertThat(dbHelper.getContacts().map { it.name }).containsExactly("Carla")
-
-            assertThat(countRows(db, "received_messages")).isEqualTo(0)
-
-            db.insert(
-                "received_messages", null,
-                ContentValues().apply {
-                    put("sender_phone", "11977776666")
-                    put("body", "Tudo bem por aqui")
-                    put("received_at", now)
-                }
-            )
-            assertThat(countRows(db, "received_messages")).isEqualTo(1)
-        } finally {
-            dbHelper.close()
-        }
-    }
-
-    /**
-     * The jump from v1 straight to v3 (skipping the intermediate step) is the case most
-     * likely to break a hand-written migration: `onUpgrade` must apply both the v2 and
-     * the v3 changes in the same pass, not just the last one.
-     */
-    @Test
-    fun `onUpgrade jumps from v1 straight to v3, creating both contacts and received_messages`() {
-        seedV1DatabaseWithHistory()
-
-        val dbHelper = GlicoKidsDbHelper(context)
-        try {
-            val db = dbHelper.writableDatabase // opening a v1 file with a v3 helper drives onUpgrade
-            assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
-
-            assertThat(dbHelper.getGlucoseReadingsSince(0)).hasSize(1)
-            assertThat(dbHelper.getRecentMeals(10)).hasSize(1)
-            assertThat(dbHelper.getMedals()).hasSize(1)
-
-            assertThat(dbHelper.getContacts()).isEmpty()
-            assertThat(countRows(db, "received_messages")).isEqualTo(0)
-
-            val contactId = dbHelper.insertContact(
-                Contact(
-                    name = "Duda",
-                    relationship = "Avó",
-                    phone = "11955554444",
-                    email = null,
-                    receivesAlert = true,
-                    receivesReport = false,
-                    isPrimary = true,
-                    createdAt = now
-                )
-            )
-            assertThat(contactId).isGreaterThan(0)
-
-            db.insert(
-                "received_messages", null,
-                ContentValues().apply {
-                    put("sender_phone", "11955554444")
-                    put("body", "Mensagem apos o pulo de v1 para v3")
-                    put("received_at", now)
-                }
-            )
-            assertThat(countRows(db, "received_messages")).isEqualTo(1)
-        } finally {
-            dbHelper.close()
-        }
-    }
-
-    /**
-     * Same guarantee as the existing v2 fresh-install case above, extended to v3:
-     * `onCreate` and the upgrade chain must agree on the exact same final schema.
-     */
-    @Test
-    fun `a fresh install also creates the received_messages table alongside contacts`() {
-        val dbHelper = GlicoKidsDbHelper(context)
-        try {
-            val db = dbHelper.writableDatabase // no pre-existing file: this drives onCreate
-            assertThat(db.version).isEqualTo(GlicoKidsDbHelper.DB_VERSION)
-            assertThat(dbHelper.getContacts()).isEmpty()
-            assertThat(countRows(db, "received_messages")).isEqualTo(0)
-
-            db.insert(
-                "received_messages", null,
-                ContentValues().apply {
-                    put("sender_phone", "11944443333")
-                    put("body", "Primeira mensagem recebida")
-                    put("received_at", now)
-                }
-            )
-            assertThat(countRows(db, "received_messages")).isEqualTo(1)
-        } finally {
-            dbHelper.close()
-        }
-    }
-
-    private fun countRows(db: SQLiteDatabase, table: String): Int =
-        db.rawQuery("SELECT COUNT(*) FROM $table", null).use { c ->
-            c.moveToFirst()
-            c.getInt(0)
-        }
+    /** Can't `COUNT(*)` a table that no longer exists — this checks presence itself. */
+    private fun tableExists(db: SQLiteDatabase, table: String): Boolean =
+        db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            arrayOf(table)
+        ).use { c -> c.moveToFirst() }
 
     /**
      * Hand-builds a database file matching what a v1 install would have produced: the
@@ -311,8 +262,8 @@ class GlicoKidsDbMigrationTest {
     /**
      * Hand-builds a database file matching what a v2 install would have produced: the
      * four original tables plus `contacts` (no `received_messages` yet), `user_version = 2`,
-     * with one row of real data in each table so the v2->v3 step can be checked for data
-     * loss, not just for the presence of the new table.
+     * with one row of real data in each table so the v2->v4 step can be checked for data
+     * loss, not just for the absence of `received_messages`.
      */
     private fun seedV2DatabaseWithHistory() {
         val db = context.openOrCreateDatabase(GlicoKidsDbHelper.DB_NAME, Context.MODE_PRIVATE, null)
@@ -422,6 +373,144 @@ class GlicoKidsDbMigrationTest {
             )
 
             db.version = 2
+        } finally {
+            db.close()
+        }
+    }
+
+    /**
+     * Hand-builds a database file matching what a v3 install would have produced: all
+     * six tables, including `received_messages`, with `user_version = 3` and one row of
+     * real data in each — `received_messages` too, so the v3->v4 step is proven to
+     * actually drop a populated table, not just an empty one.
+     */
+    private fun seedV3DatabaseWithHistory() {
+        val db = context.openOrCreateDatabase(GlicoKidsDbHelper.DB_NAME, Context.MODE_PRIVATE, null)
+        try {
+            db.execSQL(
+                """
+                CREATE TABLE glucose_readings (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  value_mgdl INTEGER NOT NULL,
+                  status TEXT NOT NULL,
+                  source TEXT NOT NULL,
+                  created_at INTEGER NOT NULL
+                );
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE meals (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  label TEXT NOT NULL,
+                  carbs_g REAL NOT NULL,
+                  glucose_mgdl INTEGER,
+                  bolus_ui REAL NOT NULL,
+                  photo_path TEXT,
+                  created_at INTEGER NOT NULL
+                );
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE medals (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  code TEXT NOT NULL UNIQUE,
+                  name TEXT NOT NULL,
+                  rarity TEXT NOT NULL,
+                  unlocked INTEGER NOT NULL DEFAULT 0,
+                  unlocked_at INTEGER
+                );
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE foods (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  nome TEXT NOT NULL,
+                  porcao TEXT NOT NULL,
+                  gramas INTEGER NOT NULL,
+                  carboidrato_g INTEGER NOT NULL
+                );
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE contacts (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  relationship TEXT NOT NULL,
+                  phone TEXT NOT NULL,
+                  email TEXT,
+                  receives_alert INTEGER NOT NULL DEFAULT 1,
+                  receives_report INTEGER NOT NULL DEFAULT 0,
+                  is_primary INTEGER NOT NULL DEFAULT 0,
+                  created_at INTEGER NOT NULL
+                );
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE received_messages (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  sender_phone TEXT NOT NULL,
+                  contact_id INTEGER,
+                  body TEXT NOT NULL,
+                  received_at INTEGER NOT NULL
+                );
+                """.trimIndent()
+            )
+
+            db.insert(
+                "glucose_readings", null,
+                ContentValues().apply {
+                    put("value_mgdl", 88)
+                    put("status", "FORA_DA_META")
+                    put("source", "SENSOR")
+                    put("created_at", now)
+                }
+            )
+            db.insert(
+                "meals", null,
+                ContentValues().apply {
+                    put("label", "Café da manhã migrado")
+                    put("carbs_g", 30.0)
+                    put("glucose_mgdl", 95)
+                    put("bolus_ui", 2.0)
+                    put("created_at", now)
+                }
+            )
+            db.insert(
+                "medals", null,
+                ContentValues().apply {
+                    put("code", "medalha_v3")
+                    put("name", "Medalha da v3")
+                    put("rarity", "DIAMANTE")
+                    put("unlocked", 1)
+                }
+            )
+            db.insert(
+                "contacts", null,
+                ContentValues().apply {
+                    put("name", "Duda")
+                    put("relationship", "Avó")
+                    put("phone", "11955554444")
+                    put("receives_alert", 1)
+                    put("receives_report", 0)
+                    put("is_primary", 1)
+                    put("created_at", now)
+                }
+            )
+            db.insert(
+                "received_messages", null,
+                ContentValues().apply {
+                    put("sender_phone", "11955554444")
+                    put("body", "Mensagem da v3, antes da remoção")
+                    put("received_at", now)
+                }
+            )
+
+            db.version = 3
         } finally {
             db.close()
         }
