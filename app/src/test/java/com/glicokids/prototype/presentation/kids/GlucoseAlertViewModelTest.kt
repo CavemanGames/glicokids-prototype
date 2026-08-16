@@ -208,13 +208,16 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
-        // Fixture correction for Etapa D GREEN: lastAlertAt is now only written once a send
-        // actually confirms, and the default relaxed mock returns false for an unstubbed
-        // suspend call — without this the throttle is never written and the verify below fails.
+        // lastAlertAt is only written once a send actually confirms, and the default relaxed
+        // mock returns false for an unstubbed suspend call — without this stub the throttle is
+        // never written and the verify below fails.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        // Waits for the settled state, not the "locating" placeholder start() publishes first:
+        // the throttle is only written once send() comes back off the IO dispatcher, so reading
+        // the first emission races that write and fails intermittently.
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         verify { prefs.lastAlertAt = now }
     }
@@ -233,7 +236,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage("11900000002", any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         coVerify { smsGateway.sendTextMessage("11900000001", message) }
         coVerify { smsGateway.sendTextMessage("11900000002", message) }
@@ -268,11 +271,13 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns false
-        // Fixture correction for Etapa D GREEN: sentTo/lastAlertAt are now gated on the real
-        // send result, and the default relaxed mock returns false for an unstubbed suspend call.
+        // sentTo and lastAlertAt are gated on the real send result, and the default relaxed
+        // mock returns false for an unstubbed suspend call.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
         viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        // Settling here matters twice over: awaitNextValue below would otherwise consume the
+        // suggestion state as if it were the result of confirmSend().
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         val sent = viewModel.uiState.awaitNextValue { viewModel.confirmSend(nowMillis = now) }
 
@@ -723,7 +728,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         verify {
             prefs.saveLastAlertLocation(lat = -23.55, lng = -46.63, label = "Rua Tal, 123", atMillis = now)
