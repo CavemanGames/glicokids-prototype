@@ -36,6 +36,14 @@ class AndroidSmsGatewayTest {
     // path: it runs eagerly on this thread up to the first real suspension point — which lands
     // right after SmsManager.sendTextMessage records the params below — then hands control
     // straight back here so the test can inspect those params and simulate the carrier's reply.
+    /**
+     * The gateway asks the system service for its [SmsManager] from API 31 onward, since the
+     * legacy accessor cannot target a subscription on a device with more than one SIM.
+     * Robolectric runs at the project's target SDK, so the assertions have to look at the manager
+     * the gateway actually used, not the legacy one.
+     */
+    private fun sentThrough(): SmsManager = context.getSystemService(SmsManager::class.java)
+
     private fun launchSend(phone: String, message: String, onResult: (Boolean) -> Unit) {
         CoroutineScope(Dispatchers.Unconfined).launch {
             onResult(gateway.sendTextMessage(phone, message))
@@ -47,7 +55,7 @@ class AndroidSmsGatewayTest {
         var result: Boolean? = null
         launchSend("11988776543", "GlicoKids: Lucas M. esta com 54 mg-dL") { result = it }
 
-        val params = shadowOf(SmsManager.getDefault()).lastSentTextMessageParams
+        val params = shadowOf(sentThrough()).lastSentTextMessageParams
         assertThat(params).isNotNull()
         assertThat(params.destinationAddress).isEqualTo("11988776543")
         assertThat(params.text).isEqualTo("GlicoKids: Lucas M. esta com 54 mg-dL")
@@ -90,7 +98,7 @@ class AndroidSmsGatewayTest {
     fun `registers a non-null sentIntent so a carrier failure can be reported back instead of assumed away`() {
         launchSend("11988776543", "GlicoKids: alerta") { }
 
-        val params = shadowOf(SmsManager.getDefault()).lastSentTextMessageParams
+        val params = shadowOf(sentThrough()).lastSentTextMessageParams
         assertThat(params.sentIntent).isNotNull()
 
         // Resolve the pending send instead of leaving it suspended past the end of the test.

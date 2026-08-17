@@ -11,6 +11,7 @@ import com.glicokids.prototype.data.model.Food
 import com.glicokids.prototype.data.model.GlucoseReading
 import com.glicokids.prototype.data.model.MealEntry
 import com.glicokids.prototype.data.model.MedalRecord
+import com.glicokids.prototype.data.model.ReceivedMessage
 import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -82,27 +83,32 @@ class GlicoKidsDbHelper @Inject constructor(
             """.trimIndent()
         )
         createContactsTable(db)
+        createReceivedMessagesTable(db)
 
         seedFoods(db)
         seedMedals(db)
     }
 
     /**
-     * Module 6 — schema v2 adds `contacts`; schema v3 added `received_messages`, later
-     * dropped again by v4 once the app stopped receiving SMS. Glucose history, meals,
-     * medals, foods and contacts must survive every upgrade, so no `DROP TABLE` touches
-     * them. A jump straight from v1 to v4 must apply every step in the same pass, which
-     * is why each is guarded by its own `if`, not an `else`.
+     * Module 6 — schema v2 adds `contacts`; schema v3 added `received_messages`, dropped
+     * again by v4 once the app briefly stopped receiving SMS, and recreated by v5 now
+     * that it receives again. Glucose history, meals, medals, foods and contacts must
+     * survive every upgrade, so no `DROP TABLE` touches them. A jump straight from v1 to
+     * v5 must apply every step in the same pass, which is why each is guarded by its own
+     * `if`, not an `else`.
      *
-     * The v3 step (`createReceivedMessagesTable`) is gone rather than kept and then
-     * dropped: with `IF EXISTS` guarding the v4 drop below, creating the table on a v1/v2
-     * install just to destroy it on the very next line would be a no-op with extra steps.
-     * Without that `IF EXISTS` this collapse would not be safe — a v1/v2 install would
-     * hit a `DROP TABLE` on a table that was never created.
+     * The v4 drop stays exactly as it was rather than being collapsed away: a real device
+     * upgraded to v4 already lost that table, and its next upgrade only reaches this
+     * method with `oldVersion == 4`, never `3` — so `if (oldVersion < 4)` is the only step
+     * that ever ran for it, and `if (oldVersion < 5)` below is what gives the table back.
+     * A v3 install that jumps straight to v5 without ever installing the v4 build still
+     * hits both steps in order — drop, then recreate — which is a no-op on the schema but
+     * matches what the v4 build would have done to that same install.
      */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createContactsTable(db)
         if (oldVersion < 4) db.execSQL("DROP TABLE IF EXISTS received_messages")
+        if (oldVersion < 5) createReceivedMessagesTable(db)
     }
 
     /** Shared by [onCreate] and [onUpgrade] so the schema is defined in a single place. */
@@ -119,6 +125,26 @@ class GlicoKidsDbHelper @Inject constructor(
               receives_report INTEGER NOT NULL DEFAULT 0,
               is_primary INTEGER NOT NULL DEFAULT 0,
               created_at INTEGER NOT NULL
+            );
+            """.trimIndent()
+        )
+    }
+
+    /**
+     * Module 6 — schema v3/v5: the incoming-message inbox behind requirement 3 (b23).
+     * Shared by [onCreate] and [onUpgrade], same as [createContactsTable]. `contact_id`
+     * is left nullable on purpose — an unknown sender still gets its message stored and
+     * shown.
+     */
+    private fun createReceivedMessagesTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE received_messages (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              sender_phone TEXT NOT NULL,
+              contact_id INTEGER,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL
             );
             """.trimIndent()
         )
@@ -228,6 +254,17 @@ class GlicoKidsDbHelper @Inject constructor(
         put("receives_report", if (receivesReport) 1 else 0)
         put("is_primary", if (isPrimary) 1 else 0)
         put("created_at", createdAt)
+    }
+
+    /** Module 6 — b23: stores one inbound message. [com.glicokids.prototype.data.sms.SmsReceiver] is the only caller. */
+    fun insertReceivedMessage(message: ReceivedMessage): Long =
+        writableDatabase.insert("received_messages", null, message.toContentValues())
+
+    private fun ReceivedMessage.toContentValues() = ContentValues().apply {
+        put("sender_phone", senderPhone)
+        if (contactId != null) put("contact_id", contactId) else putNull("contact_id")
+        put("body", body)
+        put("received_at", receivedAt)
     }
 
     /**
@@ -371,6 +408,48 @@ class GlicoKidsDbHelper @Inject constructor(
             null
         )
 
+    /**
+     * Matches [phone] against every stored contact by digits only — parentheses, spaces,
+     * hyphens and the `+55` country code are ignored on both sides of the comparison.
+     */
+    fun findContactByPhone(phone: String): Contact? {
+        val target = normalizePhone(phone)
+        return getContacts().firstOrNull { normalizePhone(it.phone) == target }
+    }
+
+    private fun normalizePhone(phone: String): String {
+        val digitsOnly = phone.filter { it.isDigit() }
+        return if (phone.trim().startsWith("+55")) digitsOnly.removePrefix("55") else digitsOnly
+    }
+
+    /** Every received message, most recent first — b23's inbox. */
+    fun getReceivedMessages(): List<ReceivedMessage> {
+        val out = mutableListOf<ReceivedMessage>()
+        readableDatabase.rawQuery(
+            "SELECT id, sender_phone, contact_id, body, received_at FROM received_messages " +
+                "ORDER BY received_at DESC",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out += ReceivedMessage(
+                    id = c.getLong(0),
+                    senderPhone = c.getString(1),
+                    contactId = if (c.isNull(2)) null else c.getLong(2),
+                    body = c.getString(3),
+                    receivedAt = c.getLong(4)
+                )
+            }
+        }
+        return out
+    }
+
+    /** Backs the count chip on b19's "Transmissões recebidas" row. */
+    fun getReceivedMessageCount(): Int =
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM received_messages", null).use { c ->
+            c.moveToFirst()
+            c.getInt(0)
+        }
+
     private fun queryContacts(clause: String, args: Array<String>?): List<Contact> {
         val out = mutableListOf<Contact>()
         readableDatabase.rawQuery(
@@ -428,6 +507,6 @@ class GlicoKidsDbHelper @Inject constructor(
 
     companion object {
         const val DB_NAME = "glicokids.db"
-        const val DB_VERSION = 4
+        const val DB_VERSION = 5
     }
 }
