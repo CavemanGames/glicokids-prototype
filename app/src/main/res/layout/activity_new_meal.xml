@@ -81,11 +81,21 @@
             app:layout_constraintTop_toBottomOf="@id/cardPhoto"
             app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
 
+        <Button
+            android:id="@+id/btnSearchFood"
+            style="@style/Widget.GlicoKids.Button.Outline"
+            android:layout_width="match_parent" android:layout_height="56dp"
+            android:layout_marginTop="14dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:drawableStart="@drawable/ic_search_small" android:drawablePadding="8dp"
+            android:text="Buscar alimento" android:textSize="14sp"
+            app:layout_constraintTop_toBottomOf="@id/tvIaHint"/>
+
         <LinearLayout
             android:id="@+id/llCarbsLabel"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="22dp" android:orientation="horizontal" android:gravity="center_vertical"
-            app:layout_constraintTop_toBottomOf="@id/tvIaHint">
+            app:layout_constraintTop_toBottomOf="@id/btnSearchFood">
             <TextView
                 android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
                 android:text="Carboidratos (g)"

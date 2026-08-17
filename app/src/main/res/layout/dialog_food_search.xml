@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- b9 · conteúdo do MaterialAlertDialog de busca de alimento (ViewBinding: DialogFoodSearchBinding),
+     Module 7. A lista local filtra a tabela do app enquanto se digita, sem rede; "Buscar online"
+     é sempre um toque explícito. Escolher uma linha, em qualquer uma das duas listas, fecha o
+     diálogo devolvendo a CarbsSelection — não há botão de confirmar separado. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:paddingHorizontal="24dp" android:paddingTop="8dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilFoodSearch"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Nome do alimento"
+            app:boxStrokeColor="@color/primary" app:hintTextColor="@color/primary_dark"
+            app:startIconDrawable="@drawable/ic_search_small" app:startIconTint="@color/text_muted_light">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etFoodSearch"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:inputType="text" android:maxLength="60" android:imeOptions="actionSearch"
+                android:textColor="@color/ink" android:textStyle="bold"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:text="TABELA DO APP"
+            android:textColor="@color/text_muted_light" android:textSize="11sp"
+            android:textStyle="bold" android:letterSpacing="0.05"/>
+
+        <!-- Altura fixa: a lista rola sozinha por dentro em vez de esticar o diálogo indefinidamente. -->
+        <ListView android:id="@+id/lvLocalFoods"
+            android:layout_width="match_parent" android:layout_height="140dp"
+            android:layout_marginTop="4dp"
+            android:divider="#F0EBFA" android:dividerHeight="1dp"
+            android:nestedScrollingEnabled="true"/>
+
+        <TextView android:id="@+id/tvNoLocalResults"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:visibility="gone"
+            android:text="Nenhum alimento encontrado na tabela do app."
+            android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btnSearchOnline"
+            style="@style/Widget.GlicoKids.Button.Outline"
+            android:layout_width="match_parent" android:layout_height="56dp"
+            android:layout_marginTop="16dp"
+            android:insetTop="0dp" android:insetBottom="0dp"
+            android:drawableStart="@drawable/ic_search_small" android:drawablePadding="8dp"
+            android:text="Buscar online" android:textSize="14sp"/>
+
+        <LinearLayout android:id="@+id/rowSearchingOnline"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:visibility="gone"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <ProgressBar
+                android:layout_width="18dp" android:layout_height="18dp"
+                android:indeterminateTint="@color/primary"/>
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="Buscando online..."
+                android:textColor="@color/text_muted_light" android:textSize="12sp" android:textStyle="bold"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tvOnlineSearchError"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:visibility="gone"
+            android:textColor="@color/danger" android:textSize="12sp" android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp" android:text="RESULTADOS ONLINE"
+            android:textColor="@color/text_muted_light" android:textSize="11sp"
+            android:textStyle="bold" android:letterSpacing="0.05"/>
+
+        <ListView android:id="@+id/lvOnlineFoods"
+            android:layout_width="match_parent" android:layout_height="140dp"
+            android:layout_marginTop="4dp" android:layout_marginBottom="8dp"
+            android:divider="#F0EBFA" android:dividerHeight="1dp"
+            android:nestedScrollingEnabled="true"/>
+    </LinearLayout>
+</ScrollView>
