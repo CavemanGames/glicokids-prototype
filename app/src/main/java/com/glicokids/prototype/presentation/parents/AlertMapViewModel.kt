@@ -190,9 +190,20 @@ class AlertMapViewModel @Inject constructor(
 
         _uiState.value = current.copy(isFollowingLocation = true, followError = null)
         followJob = viewModelScope.launch {
+            var refreshedDiagnostics = false
             locationProvider.locationUpdates(FOLLOW_INTERVAL_MILLIS).collect { point ->
                 val latest = _uiState.value ?: return@collect
                 _uiState.value = latest.copy(followedLocation = point)
+
+                // The diagnostics panel reads each provider's *last known* fix, and on a device
+                // that has not located itself recently every provider starts out with nothing —
+                // which is exactly what the panel showed on a real phone until the first fix
+                // arrived. Sampling again once one does is what makes it say anything at all.
+                // Only the first fix triggers it; re-reading on every update would be noise.
+                if (!refreshedDiagnostics) {
+                    refreshedDiagnostics = true
+                    loadTechnologyReadings()
+                }
             }
         }
     }

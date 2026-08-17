@@ -291,6 +291,31 @@ class AlertMapViewModelTest {
         assertThat(state.followedLocation).isEqualTo(point)
     }
 
+    /**
+     * Found on a physical device: the diagnostics panel is filled from each provider's last known
+     * fix, and a phone that has not located itself recently has none, so the panel sat on "nothing
+     * responded yet" even after the map was tracking the user. Loading once at startup is not
+     * enough — the first real fix has to trigger another sample.
+     */
+    @Test
+    fun `the technology diagnostics fill in once the first fix arrives, not only at startup`() {
+        fakeLocationProvider.permissionGranted = true
+        coEvery { rawLocationDataSource.sampleEachProvider() } returns emptyList()
+        val viewModel = createViewModel()
+        assertThat(viewModel.uiState.getOrAwaitValue().technologyReadings).isEmpty()
+
+        coEvery { rawLocationDataSource.sampleEachProvider() } returns listOf(
+            GeoPoint(1.0, 2.0, 8f, LocationTech.GPS, 0L),
+            GeoPoint(1.0, 2.0, 1200f, LocationTech.NETWORK, 0L)
+        )
+        fakeLocationProvider.updates = flowOf(GeoPoint(1.0, 2.0, 8f, LocationTech.GPS, 0L))
+        viewModel.setFollowingLocation(true)
+
+        val state = viewModel.uiState.getOrAwaitValue(until = { it.technologyReadings.isNotEmpty() })
+        assertThat(state.technologyReadings.map { it.tech })
+            .containsExactly(LocationTech.GPS, LocationTech.NETWORK)
+    }
+
     @Test
     fun `turning follow off stops the subscription so a later fix is never applied`() {
         fakeLocationProvider.permissionGranted = true
