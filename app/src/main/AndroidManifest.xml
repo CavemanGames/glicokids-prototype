@@ -12,9 +12,13 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Module 6 · communication: SEND_SMS backs the SMS gateway used to alert the support
-         network and to share the 7-day summary. -->
+    <!-- Module 6 · communication: SEND_SMS/RECEIVE_SMS back the SMS gateway and receiver,
+         POST_NOTIFICATIONS is required on targetSdk 34 or the incoming-message notification
+         is silently dropped. The activities and the SmsReceiver these permissions serve are
+         declared later, together with the classes that implement them. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Module 7 · location: needed to center the map on the child's current position and to
          show nearby points of interest. Coarse is requested alongside fine so the app still
@@ -112,6 +116,18 @@
             android:name=".presentation.parents.AlertMapActivity"
             android:label="Mapa de Alertas"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.ReceivedMessagesActivity"
+            android:label="Transmissões recebidas"
+            android:screenOrientation="portrait" />
+
+        <receiver android:name=".data.sms.SmsReceiver" android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

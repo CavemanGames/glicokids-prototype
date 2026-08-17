@@ -132,6 +132,22 @@ class GlicoKidsDbHelperTest {
         assertThat(dbHelper.getContacts().map { it.name }).doesNotContain("Beto")
     }
 
+    @Test
+    fun `findContactByPhone matches the formatted, plain digits and country code variants`() {
+        dbHelper.insertContact(contact(name = "Ana", phone = "(11) 98877-6543"))
+
+        assertThat(dbHelper.findContactByPhone("(11) 98877-6543")?.name).isEqualTo("Ana")
+        assertThat(dbHelper.findContactByPhone("11988776543")?.name).isEqualTo("Ana")
+        assertThat(dbHelper.findContactByPhone("+5511988776543")?.name).isEqualTo("Ana")
+    }
+
+    @Test
+    fun `findContactByPhone returns null when no contact matches`() {
+        dbHelper.insertContact(contact(name = "Ana", phone = "(11) 98877-6543"))
+
+        assertThat(dbHelper.findContactByPhone("11900000000")).isNull()
+    }
+
     private fun contact(
         name: String,
         relationship: String = "Mãe",

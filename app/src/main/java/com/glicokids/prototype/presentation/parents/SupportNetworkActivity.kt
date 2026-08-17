@@ -41,15 +41,16 @@ class SupportNetworkActivity : AppCompatActivity() {
     private var awaitingSummaryShare = false
 
     /**
-     * SEND_SMS asked once, on open — the screen never re-prompts and a denial only shows
-     * an explanatory toast; every row stays clickable either way.
+     * SEND_SMS, RECEIVE_SMS and POST_NOTIFICATIONS asked together, once, on open — the
+     * screen never re-prompts and a denial only shows an explanatory toast; every row
+     * stays clickable either way.
      */
     private val requestPermissionsLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (!granted) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            if (results.values.any { granted -> !granted }) {
                 UIHelper.showToast(
                     this,
-                    "Sem a permissão de SMS o app não consegue enviar o alerta aos responsáveis"
+                    "Sem essas permissões o app não consegue enviar SMS nem avisar sobre mensagens recebidas"
                 )
             }
         }
@@ -59,7 +60,13 @@ class SupportNetworkActivity : AppCompatActivity() {
         binding = ActivitySupportNetworkBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        requestPermissionsLauncher.launch(Manifest.permission.SEND_SMS)
+        requestPermissionsLauncher.launch(
+            arrayOf(
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.RECEIVE_SMS,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+        )
 
         contactAdapter = ContactAdapter(
             context = this,
@@ -86,6 +93,10 @@ class SupportNetworkActivity : AppCompatActivity() {
             awaitingSummaryShare = true
             viewModel.shareSummary()
         }
+
+        binding.rowReceivedMessages.setOnClickListener {
+            UIHelper.navigateTo(this, ReceivedMessagesActivity::class.java)
+        }
     }
 
     private fun observeViewModel() {
@@ -107,6 +118,10 @@ class SupportNetworkActivity : AppCompatActivity() {
                     if (!sent) UIHelper.showToast(this, "Nenhum aplicativo de SMS encontrado no aparelho")
                 }
             }
+        }
+
+        viewModel.receivedMessageCount.observe(this) { count ->
+            binding.tvReceivedCount.text = "$count ›"
         }
     }
 

@@ -5,8 +5,8 @@ import androidx.core.content.ContextCompat
 import com.glicokids.prototype.R
 
 /**
- * Shared by [ContactAdapter], which renders a colored circle with a person's initials —
- * kept as its own object so a second caller never needs a copy of the same two rules.
+ * Shared by [ContactAdapter] and [ReceivedMessagesAdapter] — both render a colored circle
+ * with a person's initials, and there is no reason for two copies of the same two rules.
  */
 object InitialsBadge {
 
