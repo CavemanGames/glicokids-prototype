@@ -90,19 +90,25 @@ class GlicoKidsDbHelper @Inject constructor(
     }
 
     /**
-     * Module 6 — schema v2 adds `contacts`, schema v3 adds `received_messages`. Each
-     * step only adds the table it owns and never touches the ones before it — glucose
-     * history, meals, medals, foods and contacts must survive every upgrade, so no
-     * `DROP TABLE` here. A jump straight from v1 to v3 must apply both steps in the
-     * same pass, which is why each is guarded by its own `if`, not an `else`.
+     * Module 6 — schema v2 adds `contacts`; schema v3 added `received_messages`, dropped
+     * again by v4 once the app briefly stopped receiving SMS, and recreated by v5 now
+     * that it receives again. Glucose history, meals, medals, foods and contacts must
+     * survive every upgrade, so no `DROP TABLE` touches them. A jump straight from v1 to
+     * v5 must apply every step in the same pass, which is why each is guarded by its own
+     * `if`, not an `else`.
+     *
+     * The v4 drop stays exactly as it was rather than being collapsed away: a real device
+     * upgraded to v4 already lost that table, and its next upgrade only reaches this
+     * method with `oldVersion == 4`, never `3` — so `if (oldVersion < 4)` is the only step
+     * that ever ran for it, and `if (oldVersion < 5)` below is what gives the table back.
+     * A v3 install that jumps straight to v5 without ever installing the v4 build still
+     * hits both steps in order — drop, then recreate — which is a no-op on the schema but
+     * matches what the v4 build would have done to that same install.
      */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) {
-            createContactsTable(db)
-        }
-        if (oldVersion < 3) {
-            createReceivedMessagesTable(db)
-        }
+        if (oldVersion < 2) createContactsTable(db)
+        if (oldVersion < 4) db.execSQL("DROP TABLE IF EXISTS received_messages")
+        if (oldVersion < 5) createReceivedMessagesTable(db)
     }
 
     /** Shared by [onCreate] and [onUpgrade] so the schema is defined in a single place. */
@@ -125,9 +131,10 @@ class GlicoKidsDbHelper @Inject constructor(
     }
 
     /**
-     * Module 6 — schema v3: the incoming-message inbox behind requirement 3 (b23). Shared
-     * by [onCreate] and [onUpgrade], same as [createContactsTable]. `contact_id` is left
-     * nullable on purpose — an unknown sender still gets its message stored and shown.
+     * Module 6 — schema v3/v5: the incoming-message inbox behind requirement 3 (b23).
+     * Shared by [onCreate] and [onUpgrade], same as [createContactsTable]. `contact_id`
+     * is left nullable on purpose — an unknown sender still gets its message stored and
+     * shown.
      */
     private fun createReceivedMessagesTable(db: SQLiteDatabase) {
         db.execSQL(
@@ -249,7 +256,7 @@ class GlicoKidsDbHelper @Inject constructor(
         put("created_at", createdAt)
     }
 
-    /** Module 6 — b23: stores one inbound message. [SmsReceiver] is the only caller. */
+    /** Module 6 — b23: stores one inbound message. [com.glicokids.prototype.data.sms.SmsReceiver] is the only caller. */
     fun insertReceivedMessage(message: ReceivedMessage): Long =
         writableDatabase.insert("received_messages", null, message.toContentValues())
 
@@ -500,6 +507,6 @@ class GlicoKidsDbHelper @Inject constructor(
 
     companion object {
         const val DB_NAME = "glicokids.db"
-        const val DB_VERSION = 3
+        const val DB_VERSION = 5
     }
 }

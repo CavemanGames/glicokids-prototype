@@ -30,12 +30,20 @@ class AndroidSmsGatewayTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val gateway = AndroidSmsGateway(context)
 
-    // Etapa D: sendTextMessage is now suspend and waits for the sentIntent broadcast, which
+    // sendTextMessage suspends and waits for the sentIntent broadcast, which
     // ShadowSmsManager records but never fires on its own (unlike a real device). This launch
     // uses Dispatchers.Unconfined the same way GlucoseAlertViewModelTest does for its own send
     // path: it runs eagerly on this thread up to the first real suspension point — which lands
     // right after SmsManager.sendTextMessage records the params below — then hands control
     // straight back here so the test can inspect those params and simulate the carrier's reply.
+    /**
+     * The gateway asks the system service for its [SmsManager] from API 31 onward, since the
+     * legacy accessor cannot target a subscription on a device with more than one SIM.
+     * Robolectric runs at the project's target SDK, so the assertions have to look at the manager
+     * the gateway actually used, not the legacy one.
+     */
+    private fun sentThrough(): SmsManager = context.getSystemService(SmsManager::class.java)
+
     private fun launchSend(phone: String, message: String, onResult: (Boolean) -> Unit) {
         CoroutineScope(Dispatchers.Unconfined).launch {
             onResult(gateway.sendTextMessage(phone, message))
@@ -47,7 +55,7 @@ class AndroidSmsGatewayTest {
         var result: Boolean? = null
         launchSend("11988776543", "GlicoKids: Lucas M. esta com 54 mg-dL") { result = it }
 
-        val params = shadowOf(SmsManager.getDefault()).lastSentTextMessageParams
+        val params = shadowOf(sentThrough()).lastSentTextMessageParams
         assertThat(params).isNotNull()
         assertThat(params.destinationAddress).isEqualTo("11988776543")
         assertThat(params.text).isEqualTo("GlicoKids: Lucas M. esta com 54 mg-dL")
@@ -78,7 +86,7 @@ class AndroidSmsGatewayTest {
         assertThat(result).isFalse()
     }
 
-    // --- Field regression (Module 6 Etapa D): a physical device sent "SMS ENVIADO" and
+    // --- Field regression found on a physical device: it showed "SMS ENVIADO" and
     // wrote the throttle for a message the carrier silently dropped. `sendTextMessage` is
     // asynchronous: no exception at the call site only means the request reached the radio,
     // not that the carrier accepted it. A carrier rejection, no-service state or invalid PDU
@@ -90,7 +98,7 @@ class AndroidSmsGatewayTest {
     fun `registers a non-null sentIntent so a carrier failure can be reported back instead of assumed away`() {
         launchSend("11988776543", "GlicoKids: alerta") { }
 
-        val params = shadowOf(SmsManager.getDefault()).lastSentTextMessageParams
+        val params = shadowOf(sentThrough()).lastSentTextMessageParams
         assertThat(params.sentIntent).isNotNull()
 
         // Resolve the pending send instead of leaving it suspended past the end of the test.

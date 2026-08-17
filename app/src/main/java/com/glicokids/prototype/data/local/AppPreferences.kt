@@ -113,6 +113,52 @@ class AppPreferences @Inject constructor(
         get() = prefs.getLong(KEY_LAST_ALERT_AT, DEFAULT_LAST_ALERT_AT)
         set(value) = prefs.edit().putLong(KEY_LAST_ALERT_AT, value).apply()
 
+    // --- Alert location prefs (Module 7) ---
+
+    /** Whether a glucose alert is allowed to carry a location hint at all. Defaults to ON:
+     * this is an emergency feature, and a feature that needs prior setup tends to be off
+     * exactly when it would matter most, so the safer default is enabled-unless-turned-off. */
+    var alertIncludeLocation: Boolean
+        get() = prefs.getBoolean(KEY_ALERT_INCLUDE_LOCATION, DEFAULT_ALERT_INCLUDE_LOCATION)
+        set(value) = prefs.edit().putBoolean(KEY_ALERT_INCLUDE_LOCATION, value).apply()
+
+    /** Best-effort reverse-geocoded address for the last alert location saved via
+     * [saveLastAlertLocation]. Null before the first save, or when reverse geocoding
+     * did not resolve one. */
+    var lastAlertLocationLabel: String?
+        get() = prefs.getString(KEY_LAST_ALERT_LOCATION_LABEL, null)
+        set(value) = prefs.edit().putString(KEY_LAST_ALERT_LOCATION_LABEL, value).apply()
+
+    /** Latitude of the last alert location saved via [saveLastAlertLocation]. `SharedPreferences`
+     * has no native double storage, so this is kept as a `Float` underneath — plenty of
+     * precision for a map screen, never meant to drive clinical logic. */
+    var lastAlertLocationLat: Double
+        get() = prefs.getFloat(KEY_LAST_ALERT_LOCATION_LAT, 0f).toDouble()
+        set(value) = prefs.edit().putFloat(KEY_LAST_ALERT_LOCATION_LAT, value.toFloat()).apply()
+
+    /** Longitude counterpart to [lastAlertLocationLat]. */
+    var lastAlertLocationLng: Double
+        get() = prefs.getFloat(KEY_LAST_ALERT_LOCATION_LNG, 0f).toDouble()
+        set(value) = prefs.edit().putFloat(KEY_LAST_ALERT_LOCATION_LNG, value.toFloat()).apply()
+
+    /** Epoch millis of the last alert location saved; 0 = never saved. Same never-happened
+     * sentinel as [lastAlertAt] and [lastReportAt]. */
+    var lastAlertLocationAt: Long
+        get() = prefs.getLong(KEY_LAST_ALERT_LOCATION_AT, DEFAULT_LAST_ALERT_LOCATION_AT)
+        set(value) = prefs.edit().putLong(KEY_LAST_ALERT_LOCATION_AT, value).apply()
+
+    /** Writes the last alert location in a single transaction — lat, lng, label and
+     * timestamp all change together, the same reasoning as [saveTargetRange]. A single
+     * record, not a history: only ever overwritten, never appended to a table. */
+    fun saveLastAlertLocation(lat: Double, lng: Double, label: String?, atMillis: Long) {
+        prefs.edit()
+            .putFloat(KEY_LAST_ALERT_LOCATION_LAT, lat.toFloat())
+            .putFloat(KEY_LAST_ALERT_LOCATION_LNG, lng.toFloat())
+            .putString(KEY_LAST_ALERT_LOCATION_LABEL, label)
+            .putLong(KEY_LAST_ALERT_LOCATION_AT, atMillis)
+            .apply()
+    }
+
     /** Writes the target range in a single transaction — both ends change together. */
     fun saveTargetRange(min: Int, max: Int) {
         prefs.edit()
@@ -142,6 +188,11 @@ class AppPreferences @Inject constructor(
         const val KEY_ALERT_THROTTLE_MIN = "alert_throttle_min"
         const val KEY_ALERT_ON_RECOVERY = "alert_on_recovery"
         const val KEY_LAST_ALERT_AT = "last_alert_at"
+        const val KEY_ALERT_INCLUDE_LOCATION = "alert_include_location"
+        const val KEY_LAST_ALERT_LOCATION_LABEL = "last_alert_location_label"
+        const val KEY_LAST_ALERT_LOCATION_LAT = "last_alert_location_lat"
+        const val KEY_LAST_ALERT_LOCATION_LNG = "last_alert_location_lng"
+        const val KEY_LAST_ALERT_LOCATION_AT = "last_alert_location_at"
 
         const val DEFAULT_CHILD_NAME = "Lucas"
         const val DEFAULT_RANGE_MIN = 70
@@ -157,6 +208,10 @@ class AppPreferences @Inject constructor(
         const val DEFAULT_ALERT_THROTTLE_MIN = 30
         const val DEFAULT_ALERT_ON_RECOVERY = true
         const val DEFAULT_LAST_ALERT_AT = 0L
+
+        /** Emergency feature: defaults to on, never to off-until-configured. */
+        const val DEFAULT_ALERT_INCLUDE_LOCATION = true
+        const val DEFAULT_LAST_ALERT_LOCATION_AT = 0L
 
         /**
          * Absolute bounds allowed when editing the target range: wide enough to

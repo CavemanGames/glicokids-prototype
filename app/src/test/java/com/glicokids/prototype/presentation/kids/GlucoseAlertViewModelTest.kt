@@ -8,10 +8,14 @@ import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.data.local.ReportStorage
 import com.glicokids.prototype.data.model.Contact
 import com.glicokids.prototype.domain.model.AlertDirection
+import com.glicokids.prototype.domain.model.AlertLocationSnapshot
 import com.glicokids.prototype.domain.model.AlertMode
+import com.glicokids.prototype.domain.model.GeoPoint
+import com.glicokids.prototype.domain.model.LocationTech
 import com.glicokids.prototype.domain.model.ReadingSource
 import com.glicokids.prototype.domain.repository.SmsGateway
 import com.glicokids.prototype.domain.usecase.BuildAlertMessageUseCase
+import com.glicokids.prototype.domain.usecase.ResolveAlertLocationUseCase
 import com.glicokids.prototype.domain.usecase.ShouldAutoAlertUseCase
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
@@ -24,6 +28,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -49,6 +54,9 @@ class GlucoseAlertViewModelTest {
     private val smsGateway = mockk<SmsGateway>(relaxed = true)
     private val shouldAutoAlertUseCase = mockk<ShouldAutoAlertUseCase>()
     private val buildAlertMessageUseCase = mockk<BuildAlertMessageUseCase>()
+    // Module 7: relaxed because most existing tests never touch location at all — only the
+    // new tests below stub it explicitly.
+    private val resolveAlertLocationUseCase = mockk<ResolveAlertLocationUseCase>(relaxed = true)
 
     private lateinit var viewModel: GlucoseAlertViewModel
 
@@ -61,17 +69,25 @@ class GlucoseAlertViewModelTest {
      * send path hops through the real Dispatchers.IO, which an Unconfined test dispatcher
      * cannot observe synchronously.
      *
-     * Only safe for the *first* emission a test waits on. `observeForever` replays
-     * whatever value is already stored the instant it is called, so a second call on a
-     * LiveData that already holds a value returns that stale value immediately instead of
-     * waiting for a later one — use [awaitNextValue] whenever an action is expected to
-     * produce a value distinct from the one already there.
+     * Only safe for the *first* emission a test waits on that also satisfies [until].
+     * `observeForever` replays whatever value is already stored the instant it is called, so
+     * a second call on a LiveData that already holds a value returns that stale value
+     * immediately instead of waiting for a later one — use [awaitNextValue] whenever an
+     * action is expected to produce a value distinct from the one already there.
+     *
+     * [until] defaults to accepting whatever arrives first. Module 7 — once
+     * [GlucoseAlertViewModel.start] starts publishing an `isLocating = true` placeholder
+     * ahead of the settled state (both on the automatic and the suggest/off paths), a caller
+     * that wants the *settled* state on the automatic path — where the eventual send hops
+     * through the real `Dispatchers.IO` and resumes asynchronously — must pass
+     * `until = { !it.isLocating }` or it will grab that placeholder instead.
      */
-    private fun <T> LiveData<T>.getOrAwaitValue(timeoutSeconds: Long = 2): T {
+    private fun <T> LiveData<T>.getOrAwaitValue(timeoutSeconds: Long = 2, until: (T) -> Boolean = { true }): T {
         var data: T? = null
         val latch = CountDownLatch(1)
         val observer = object : Observer<T> {
             override fun onChanged(value: T) {
+                if (!until(value)) return
                 data = value
                 latch.countDown()
                 this@getOrAwaitValue.removeObserver(this)
@@ -147,10 +163,15 @@ class GlucoseAlertViewModelTest {
         every { prefs.alertModeHyper } returns AlertMode.SUGGEST
         every { prefs.alertThrottleMin } returns 30
         every { prefs.lastAlertAt } returns 0L
+        // Module 7: default consent ON, matching AppPreferences.DEFAULT_ALERT_INCLUDE_LOCATION —
+        // a relaxed mock would otherwise return false here, the opposite of the real default.
+        every { prefs.alertIncludeLocation } returns true
         every { dbHelper.getAlertRecipients() } returns emptyList()
-        every { buildAlertMessageUseCase.execute(any(), any(), any(), any(), any(), any(), any()) } returns message
+        // 8 any() since Module 7 added the defaulted locationHint parameter.
+        every { buildAlertMessageUseCase.execute(any(), any(), any(), any(), any(), any(), any(), any()) } returns message
         viewModel = GlucoseAlertViewModel(
-            dbHelper, prefs, reportStorage, smsGateway, shouldAutoAlertUseCase, buildAlertMessageUseCase
+            dbHelper, prefs, reportStorage, smsGateway, shouldAutoAlertUseCase, buildAlertMessageUseCase,
+            resolveAlertLocationUseCase
         )
     }
 
@@ -168,12 +189,12 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
-        // Fixture correction for Etapa D GREEN: sentTo is now filtered by the real send
-        // result, and the default relaxed mock returns false for an unstubbed suspend call.
+        // sentTo is filtered by the real send result, and the default relaxed mock returns
+        // false for an unstubbed suspend call.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        val state = viewModel.uiState.getOrAwaitValue()
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         coVerify { smsGateway.sendTextMessage("11988776543", message) }
         assertThat(state.sentTo).hasSize(2)
@@ -187,13 +208,16 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns true
-        // Fixture correction for Etapa D GREEN: lastAlertAt is now only written once a send
-        // actually confirms, and the default relaxed mock returns false for an unstubbed
-        // suspend call — without this the throttle is never written and the verify below fails.
+        // lastAlertAt is only written once a send actually confirms, and the default relaxed
+        // mock returns false for an unstubbed suspend call — without this stub the throttle is
+        // never written and the verify below fails.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        // Waits for the settled state, not the "locating" placeholder start() publishes first:
+        // the throttle is only written once send() comes back off the IO dispatcher, so reading
+        // the first emission races that write and fails intermittently.
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         verify { prefs.lastAlertAt = now }
     }
@@ -212,7 +236,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage("11900000002", any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         coVerify { smsGateway.sendTextMessage("11900000001", message) }
         coVerify { smsGateway.sendTextMessage("11900000002", message) }
@@ -247,11 +271,13 @@ class GlucoseAlertViewModelTest {
         every {
             shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
         } returns false
-        // Fixture correction for Etapa D GREEN: sentTo/lastAlertAt are now gated on the real
-        // send result, and the default relaxed mock returns false for an unstubbed suspend call.
+        // sentTo and lastAlertAt are gated on the real send result, and the default relaxed
+        // mock returns false for an unstubbed suspend call.
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
         viewModel.start(value = 260, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        viewModel.uiState.getOrAwaitValue()
+        // Settling here matters twice over: awaitNextValue below would otherwise consume the
+        // suggestion state as if it were the result of confirmSend().
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         val sent = viewModel.uiState.awaitNextValue { viewModel.confirmSend(nowMillis = now) }
 
@@ -335,7 +361,7 @@ class GlucoseAlertViewModelTest {
         assertThat(directionSlot.captured).isEqualTo(AlertDirection.HYPER)
     }
 
-    // --- Async send result must gate what counts as "sent" (Etapa D field regression) ---
+    // --- Async send result must gate what counts as "sent" ---
     //
     // A physical-device test showed "SMS ENVIADO AUTOMATICAMENTE" and a written throttle for
     // a message the carrier silently dropped, because AndroidSmsGateway.sendTextMessage
@@ -343,14 +369,13 @@ class GlucoseAlertViewModelTest {
     // symptoms visible at this ViewModel: the throttle must not survive a send that failed,
     // and a recipient whose send failed must not show up in the "already sent" list.
     //
-    // NOTE for GREEN (done): fixing this also flipped three other tests that used the default
-    // `relaxed` smsGateway mock, which returns `false` for an unstubbed call — `use case true
-    // sends to every alert recipient...` (~163), `use case true records last_alert_at` (~180)
-    // and `confirming the suggestion sends to every recipient...` (~234). Each now stubs
-    // `coEvery { smsGateway.sendTextMessage(any(), any()) } returns true` for a reason
-    // unrelated to this bug: sentTo/lastAlertAt are filtered by the actual send result.
-    // SmsGateway.sendTextMessage is `suspend` (Etapa D), so every/verify on it became
-    // coEvery/coVerify throughout this file.
+    // Fixing that also flipped three other tests that relied on the default `relaxed`
+    // smsGateway mock, which returns `false` for an unstubbed call — the ones covering an
+    // automatic send to every recipient, the throttle write, and confirming a suggestion.
+    // Each now stubs `coEvery { smsGateway.sendTextMessage(any(), any()) } returns true` for a
+    // reason unrelated to this bug: sentTo and lastAlertAt are filtered by the actual send
+    // result. Since sendTextMessage suspends, every/verify on it became coEvery/coVerify
+    // throughout this file.
 
     @Test
     fun `does not record last_alert_at when every send fails`() {
@@ -382,7 +407,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage("11900000002", any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        val state = viewModel.uiState.getOrAwaitValue()
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         // Today sentTo is built unconditionally from the recipient list regardless of the
         // gateway result, so Ana still shows up as "sent" -> this assertion fails against
@@ -502,7 +527,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        val state = viewModel.uiState.getOrAwaitValue()
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         assertThat(state.sentTo).isNotEmpty()
         assertThat(state.showResendAction).isTrue()
@@ -534,7 +559,7 @@ class GlucoseAlertViewModelTest {
         coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
 
         viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
-        val state = viewModel.uiState.getOrAwaitValue()
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
 
         assertThat(state.showThrottleNotice).isTrue()
     }
@@ -605,5 +630,143 @@ class GlucoseAlertViewModelTest {
         val state = viewModel.uiState.getOrAwaitValue()
 
         assertThat(state.sendFailedMessage).isNull()
+    }
+
+    // --- Module 7 (RED): the alert screen gains a location hint ---
+    //
+    // start()/send() are untouched in production so far — ResolveAlertLocationUseCase is
+    // injected but never called. Every test below that expects locationLabel/isLocating to be
+    // populated, or that resolveAlertLocationUseCase was actually consulted, fails today for
+    // that reason; GREEN wiring it in is what turns them green. The two tests marked "guard"
+    // are the opposite: they already pass, and must keep passing forever — they pin the
+    // invariant that a location failure (or, here, no wiring at all yet) can never block,
+    // delay or change the alert send.
+
+    private val locationPoint = GeoPoint(
+        lat = -23.55, lng = -46.63, accuracyMeters = 15f, tech = LocationTech.GPS, timestampMillis = 1_700_000_000_000L
+    )
+
+    @Test
+    fun `guard - does not consult location resolution at all when the location preference is off`() {
+        every { prefs.alertIncludeLocation } returns false
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        viewModel.uiState.getOrAwaitValue()
+
+        coVerify(exactly = 0) { resolveAlertLocationUseCase.execute(any()) }
+    }
+
+    // Product decision superseded the original shape of this guard (session of 16/08/2026):
+    // start() now awaits resolveAlertLocationUseCase.execute(...) before building/sending the
+    // message, on purpose — an auto-send may take up to BUDGET_MILLIS longer so the SMS can
+    // carry an address. That is safe only because ResolveAlertLocationUseCase promises to
+    // always return within its own budget and never throw — proven independently, with real
+    // virtual-time control, by ResolveAlertLocationUseCaseTest (see especially "a fix that only
+    // arrives after this use case's own budget counts as no fix"). A mock that hangs forever via
+    // delay(Long.MAX_VALUE) bypasses that real contract and cannot resolve on this test's plain
+    // UnconfinedTestDispatcher (there is no virtual-time driver here to elapse it), so it no
+    // longer models a scenario the real use case can ever produce. What this guard still owes
+    // the suite is proof that a *settled* empty resolution — the actual terminal outcome the
+    // real use case always reaches — never blocks the alert from reaching its recipients.
+    @Test
+    fun `guard - the alert still reaches every recipient even when location resolution finds nothing`() {
+        every { prefs.alertIncludeLocation } returns true
+        coEvery { resolveAlertLocationUseCase.execute(any()) } returns null
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
+
+        assertThat(state.sentTo).isNotEmpty()
+        coVerify { smsGateway.sendTextMessage("11988776543", any()) }
+    }
+
+    @Test
+    fun `once consent is on and location resolves, the sent message carries the location hint`() {
+        every { prefs.alertIncludeLocation } returns true
+        coEvery { resolveAlertLocationUseCase.execute(true) } returns
+            AlertLocationSnapshot(point = locationPoint, label = "Rua Tal, 123")
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+        every {
+            buildAlertMessageUseCase.execute(
+                partialChildName = any(), value = any(), timestampMillis = any(),
+                rangeMin = any(), rangeMax = any(), isHypo = any(), fromSensor = any(),
+                locationHint = "Rua Tal, 123"
+            )
+        } returns "$message (Rua Tal, 123)"
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        val state = viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
+
+        assertThat(state.messagePreview).contains("Rua Tal, 123")
+        assertThat(state.locationLabel).isEqualTo("Rua Tal, 123")
+    }
+
+    @Test
+    fun `once consent is on and location resolves, the last alert location is written to preferences`() {
+        every { prefs.alertIncludeLocation } returns true
+        coEvery { resolveAlertLocationUseCase.execute(true) } returns
+            AlertLocationSnapshot(point = locationPoint, label = "Rua Tal, 123")
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        viewModel.uiState.getOrAwaitValue(until = { !it.isLocating })
+
+        verify {
+            prefs.saveLastAlertLocation(lat = -23.55, lng = -46.63, label = "Rua Tal, 123", atMillis = now)
+        }
+    }
+
+    @Test
+    fun `location resolution failing does not write any last alert location`() {
+        every { prefs.alertIncludeLocation } returns true
+        coEvery { resolveAlertLocationUseCase.execute(true) } returns null
+        every { dbHelper.getAlertRecipients() } returns listOf(sampleContact())
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { smsGateway.sendTextMessage(any(), any()) } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+        viewModel.uiState.getOrAwaitValue()
+
+        verify(exactly = 0) { prefs.saveLastAlertLocation(any(), any(), any(), any()) }
+    }
+
+    // Design assumption flagged for confirmation (see report): this pins isLocating to an
+    // emission published before the location resolution suspends, observable synchronously
+    // under UnconfinedTestDispatcher. If GREEN's chosen shape emits the searching state some
+    // other way, this specific test may need adjusting — the requirement it specifies (b22 has
+    // something to show while the async resolution is in flight) does not.
+    @Test
+    fun `start shows isLocating true immediately while the location resolution is still pending`() {
+        every { prefs.alertIncludeLocation } returns true
+        coEvery { resolveAlertLocationUseCase.execute(any()) } coAnswers { delay(Long.MAX_VALUE); null }
+        every {
+            shouldAutoAlertUseCase.execute(any(), any(), any(), any(), any(), any(), any())
+        } returns true
+
+        viewModel.start(value = 54, timestampMillis = now, source = ReadingSource.SENSOR, nowMillis = now)
+
+        val state = viewModel.uiState.value
+        assertThat(state).isNotNull()
+        assertThat(state!!.isLocating).isTrue()
     }
 }

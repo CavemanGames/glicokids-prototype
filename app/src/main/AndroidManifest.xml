@@ -20,10 +20,16 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Module 6 (Etapa D) — Android 11+ package visibility: without declaring this <queries>
+    <!-- Module 7 · location: needed to center the map on the child's current position and to
+         show nearby points of interest. Coarse is requested alongside fine so the app still
+         works if the user only grants the approximate location. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Android 11+ package visibility: without declaring this <queries>
          entry, resolveActivity()/queryIntentActivities() for the implicit image-capture intent
          return empty even when a camera app is installed, because the OS hides other packages
-         from us by default (`.artifacts/SPEC-camera-captura-real.md` §3b/§7). -->
+         from us by default. -->
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
@@ -40,6 +46,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GlicoKids">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".presentation.SplashActivity"
@@ -100,6 +110,11 @@
         <activity
             android:name=".presentation.kids.GlucoseAlertActivity"
             android:label="Alerta de glicemia"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".presentation.parents.AlertMapActivity"
+            android:label="Mapa de Alertas"
             android:screenOrientation="portrait" />
 
         <activity

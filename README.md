@@ -105,6 +105,16 @@ open the app.
 | 3 | Incoming SMS + notification | `BroadcastReceiver` (`SMS_RECEIVED`) + `NotificationChannel`/`NotificationManager` | Received Messages screen |
 | 4 | Email | `Intent.ACTION_SENDTO` (`mailto:`) with recipient, subject, and body pre-filled | Parent Area — "Send by email", recipients are contacts opted into the report |
 
+Requirement 3 was briefly removed after this module first shipped, on the theory that GlicoKids
+has no synchronous channel back to a guardian and a reply typed on their end had nowhere to land.
+It is back: outgoing SMS on the same device stopped working entirely once the receiver was gone,
+and the working hypothesis is that the platform only grants direct-send `SmsManager` access to an
+app that also declares an SMS receiver — restoring the receiver is what got sending working again.
+Restored: the `RECEIVE_SMS` permission, the `SmsReceiver` broadcast receiver, the Received
+Messages screen, the `received_messages` table (schema v5 — the table was dropped on the upgrade
+to v4 and created again, empty, on the upgrade to v5), and the notification channel that announces
+an incoming message.
+
 **Support Network in SQLite.** Unlike single-value settings, the support network is a list of
 people, each with their own permissions — it lives in its own `contacts` table (`glicokids.db`,
 schema v2) rather than in `SharedPreferences`. `relationship` is a required field (mother,
@@ -196,17 +206,21 @@ in the app: the call was accepted, the result intent came back, and the reason c
 telephony. The alert screen reports exactly that — it does not claim the message was sent, does
 not start the cooldown, and does not offer to resend something that never left.
 
-## 7. Quality Assurance & DevOps
+## 7. Running the Map
+
+Module 7 adds Google Maps to the app, which means anyone building it from source needs their own API key — none is bundled with the repository. Create a project in the Google Cloud Console, enable the **Maps SDK for Android**, then create an API key and restrict it to Android apps, listing the package name (`com.glicokids.prototype`) and the SHA-1 fingerprint of your own debug certificate (`./gradlew signingReport` prints it). Drop the key into `local.properties` at the repository root as `MAPS_API_KEY=YOUR_KEY_HERE`; that file is git-ignored and is never committed. One thing that trips people up: the Google Maps Platform requires an active billing account on the Cloud project even to stay within the free tier, and a key created without one is silently rejected — the map fails to render exactly as it would with no key at all, which makes the two cases easy to confuse. Building and running without a key is expected to work — it's what CI does — the map view just won't render anything.
+
+## 8. Quality Assurance & DevOps
 - **Gitflow Strategy**: Professional branch structure (`main`, `staging`, `develop`).
 - **CI/CD Pipeline**: GitHub Actions configured for automated build validation and JUnit testing on every Pull Request.
 - **Branch Protection**: Strict rules and bypass lists implemented to ensure code integrity.
 
-## 8. Test Credentials (Prototype Only)
+## 9. Test Credentials (Prototype Only)
 To evaluate the prototype, use the following mocked credentials:
 - **Parent Area PIN**: `1234`
 - **Simulated Child Name**: `Lucas`
 
-## 9. Copyright & Licensing
+## 10. Copyright & Licensing
 
 Copyright © 2026 Luiz Augusto Melo. All rights reserved.
 

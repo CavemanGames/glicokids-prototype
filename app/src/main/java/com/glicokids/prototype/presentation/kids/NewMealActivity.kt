@@ -31,8 +31,13 @@ class NewMealActivity : AppCompatActivity() {
     private lateinit var binding: ActivityNewMealBinding
     private val viewModel: NewMealViewModel by viewModels()
 
-    /** true while the carbohydrate value came from the camera rather than typing. */
-    private var carbsFromPhoto = false
+    /** Where the value in `etCarbohydrates` currently comes from — see [CarbsOrigin]. */
+    private var carbsOrigin: CarbsOrigin = CarbsOrigin.Manual
+
+    /** Set right before any programmatic `etCarbohydrates.setText(...)` (photo estimate, a food
+     * pick) so the `doAfterTextChanged` watcher can tell that edit apart from the child typing,
+     * without the two `setText` call sites duplicating the same watcher-suppression dance. */
+    private var pendingProgrammaticCarbsUpdate = false
 
     /** Prevents storing the same meal twice if the state is re-emitted. */
     private var mealSaved = false
@@ -40,7 +45,7 @@ class NewMealActivity : AppCompatActivity() {
     @Inject lateinit var prefs: AppPreferences
     @Inject lateinit var dbHelper: GlicoKidsDbHelper
 
-    // Module 6 (Etapa D) — real camera capture (`.artifacts/SPEC-camera-captura-real.md` §3).
+    // Real camera capture on b9.
     // Permission is requested unconditionally in onCreate, same pattern as SupportNetworkActivity
     // (b19): a denial just falls back to a toast when the button is pressed, never a re-prompt.
     private val requestCameraPermissionLauncher =
@@ -52,7 +57,7 @@ class NewMealActivity : AppCompatActivity() {
 
     // TakePicturePreview() returns the Bitmap straight into the callback — no Uri, no
     // FileProvider, no file. The thumbnail lives only in memory for as long as this screen is
-    // open (SPEC §4/§7): it is never written to photoPath, never survives process recreation.
+    // open: it is never written to photoPath, never survives process recreation.
     private val takePictureLauncher =
         registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
             onPhotoCaptured(bitmap)
@@ -90,11 +95,17 @@ class NewMealActivity : AppCompatActivity() {
             }
         }
 
-        // Typing over the estimate drops the chip: the value no longer comes from the photo.
+        // Module 7 — b9's "buscar alimento" dialog.
+        binding.btnSearchFood.setOnClickListener {
+            FoodSearchDialog.show(this, viewModel) { selection -> applyCarbsSelection(selection) }
+        }
+
+        // Typing over an estimate/pick drops the chip: the value no longer comes from it.
         binding.etCarbohydrates.doAfterTextChanged {
-            if (carbsFromPhoto) {
-                carbsFromPhoto = false
+            if (pendingProgrammaticCarbsUpdate) {
+                pendingProgrammaticCarbsUpdate = false
             } else {
+                carbsOrigin = CarbsOrigin.Manual
                 binding.tvCarbsSource.visibility = View.GONE
             }
         }
@@ -109,9 +120,9 @@ class NewMealActivity : AppCompatActivity() {
     }
 
     /**
-     * Module 6 (Etapa D) — `TakePicturePreview()` callback. `bitmap == null` means the user
-     * cancelled or the camera app failed; nothing on screen changes and no toast fires (SPEC
-     * §7 — that is not an error to flag). `bitmap != null` shows the real thumbnail and only
+     * `TakePicturePreview()` callback. `bitmap == null` means the user
+     * cancelled or the camera app failed; nothing on screen changes and no toast fires —
+     * that is not an error to flag. `bitmap != null` shows the real thumbnail and only
      * then runs the pre-existing simulated-carbs behaviour, unchanged.
      */
     private fun onPhotoCaptured(bitmap: Bitmap?) {
@@ -121,12 +132,25 @@ class NewMealActivity : AppCompatActivity() {
         applyPhotoState(hasPhoto = true)
 
         Toast.makeText(this, "Simulando captura de foto...", Toast.LENGTH_SHORT).show()
-        carbsFromPhoto = true
+        carbsOrigin = CarbsOrigin.Photo
+        pendingProgrammaticCarbsUpdate = true
         binding.etCarbohydrates.setText(SIMULATED_CARBS)
+        binding.tvCarbsSource.text = CarbsSelectionFormatter.chipText(CarbsOrigin.Photo)
         binding.tvCarbsSource.visibility = View.VISIBLE
     }
 
-    /** Applies [MealPhotoUiState] to `ivMealPhoto`/`ivPhotoPlaceholder` (SPEC §6). */
+    /** Module 7 — a food picked from [FoodSearchDialog], local or online. Same
+     * watcher-suppression dance as [onPhotoCaptured]: the field is updated first, and the chip
+     * is set from [CarbsSelectionFormatter] right after so it never lags behind [carbsOrigin]. */
+    private fun applyCarbsSelection(selection: CarbsSelection) {
+        carbsOrigin = selection.origin
+        pendingProgrammaticCarbsUpdate = true
+        binding.etCarbohydrates.setText(CarbsSelectionFormatter.carbsFieldText(selection.carbs))
+        binding.tvCarbsSource.text = CarbsSelectionFormatter.chipText(selection.origin)
+        binding.tvCarbsSource.visibility = View.VISIBLE
+    }
+
+    /** Applies [MealPhotoUiState] to `ivMealPhoto`/`ivPhotoPlaceholder`. */
     private fun applyPhotoState(hasPhoto: Boolean) {
         val state = MealPhotoUiState.forPhoto(hasPhoto)
         binding.ivPhotoPlaceholder.visibility = if (state.placeholderVisible) View.VISIBLE else View.GONE
@@ -184,7 +208,7 @@ class NewMealActivity : AppCompatActivity() {
             carbsG = carbs,
             glucoseMgdl = glucose,
             bolusUi = dose,
-            photoPath = null, // Module 6 (Etapa D): the photo is real but lives only in memory, never on disk
+            photoPath = null, // The photo is real but lives only in memory, never on disk
             createdAt = System.currentTimeMillis()
         )
 

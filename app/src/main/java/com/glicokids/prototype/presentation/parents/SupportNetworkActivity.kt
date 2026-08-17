@@ -204,7 +204,7 @@ class SupportNetworkActivity : AppCompatActivity() {
 
     private fun sendTestMessage(contact: Contact) {
         val message = "GlicoKids: mensagem de teste para ${contact.name}. Sua rede de apoio está configurada."
-        // sendTextMessage is suspend since Etapa D — it waits for the carrier's real
+        // sendTextMessage is suspend — it waits for the carrier's real
         // confirmation instead of assuming a send worked — so this hops off the main thread
         // the same way NewMealActivity does for its own IO-bound work.
         lifecycleScope.launch {

@@ -1,7 +1,9 @@
 package com.glicokids.prototype.presentation.kids
 
+import android.Manifest
 import android.os.Bundle
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.glicokids.prototype.data.local.AppPreferences
@@ -34,7 +36,7 @@ class GlucoseAlertActivity : AppCompatActivity() {
 
     private val timeFormat = SimpleDateFormat("HH:mm", Locale("pt", "BR"))
 
-    /** Achado 5 (Etapa D): [tvSentHeader][observeViewModel] used to claim "AUTOMATICAMENTE"
+    /** [tvSentHeader][observeViewModel] used to claim "AUTOMATICAMENTE"
      * even on the SUGGEST path, where the caregiver had just tapped a button. Set the moment
      * [setupListeners] fires `confirmSend`, so the very next `sentTo`-carrying state can be
      * told apart from one the ViewModel produced entirely on its own in [GlucoseAlertViewModel.start]. */
@@ -48,6 +50,23 @@ class GlucoseAlertActivity : AppCompatActivity() {
      * value and never re-fires — only a genuine null-to-non-null transition toasts. */
     private var lastSendFailedMessage: String? = null
 
+    /**
+     * Module 7 — asked once, on open, same pattern as [SupportNetworkActivity]'s SEND_SMS
+     * request: never re-prompts, a denial only explains itself with a toast, and the alert
+     * keeps working without an address either way — [ResolveAlertLocationUseCase] degrades to
+     * `null` on a missing permission ([LocationProvider.hasPermission] never throws), it never
+     * needs a signal from here to do that.
+     */
+    private val requestLocationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted && prefs.alertIncludeLocation) {
+                UIHelper.showToast(
+                    this,
+                    "Sem a permissão de localização o alerta sai sem o endereço aproximado"
+                )
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGlucoseAlertBinding.inflate(layoutInflater)
@@ -58,6 +77,10 @@ class GlucoseAlertActivity : AppCompatActivity() {
         val source = ReadingSource.valueOf(
             intent.getStringExtra(EXTRA_SOURCE) ?: ReadingSource.SENSOR.name
         )
+
+        if (prefs.alertIncludeLocation) {
+            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
 
         renderStaticInfo(value, timestampMillis, source)
         setupListeners()
@@ -114,6 +137,23 @@ class GlucoseAlertActivity : AppCompatActivity() {
             binding.btnResend.visibility = if (state.showResendAction) View.VISIBLE else View.GONE
             binding.btnImOk.text = state.imOkButtonText
 
+            // Module 7: best-effort address, shown only while there is something to say —
+            // "localizando…" during the resolution, the resolved label once it lands, gone
+            // otherwise (preference off, no fix, resolution came back empty).
+            when {
+                state.isLocating -> {
+                    binding.tvAlertLocation.text = "localizando…"
+                    binding.tvAlertLocation.visibility = View.VISIBLE
+                }
+                state.locationLabel != null -> {
+                    binding.tvAlertLocation.text = "perto de ${state.locationLabel}"
+                    binding.tvAlertLocation.visibility = View.VISIBLE
+                }
+                else -> {
+                    binding.tvAlertLocation.visibility = View.GONE
+                }
+            }
+
             // Field defect: confirmSend reaching nobody (e.g. SEND_SMS revoked) used to hide
             // every button with no explanation. Toast only on a genuine null -> non-null
             // transition — see [lastSendFailedMessage] for why a naive check would double-fire
@@ -123,7 +163,7 @@ class GlucoseAlertActivity : AppCompatActivity() {
             }
             lastSendFailedMessage = state.sendFailedMessage
 
-            // Achado 5 (Etapa D): sentTo only ever carries recipients whose send actually
+            // sentTo only ever carries recipients whose send actually
             // confirmed (GlucoseAlertViewModel.send filters by the real gateway result), so
             // whenever this card is visible the outcome shown below really is "enviado" —
             // the header just has to stop claiming "automatically" for a send the caregiver

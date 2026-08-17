@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.glicokids.prototype.R
 import com.glicokids.prototype.databinding.DialogTargetRangeBinding
@@ -58,7 +59,10 @@ class ParentAreaFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        binding.btnBack.setOnClickListener { requireActivity().finish() }
+        // Pops back to the child's dashboard. This used to call finish() on the host activity,
+        // which tore down the whole app and dropped the user on the phone's home screen — from
+        // the outside that is indistinguishable from a crash, and it was reported as one.
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
         binding.rowFsi.setOnClickListener {
             showParamDialog(
@@ -103,6 +107,11 @@ class ParentAreaFragment : Fragment() {
         // b19 — protected by PIN simply by living inside the Parent Area.
         binding.cvSupportNetwork.setOnClickListener {
             UIHelper.navigateTo(requireContext(), SupportNetworkActivity::class.java)
+        }
+
+        // Module 7 (b-map) — same PIN protection, same navigation idiom.
+        binding.cvMap.setOnClickListener {
+            UIHelper.navigateTo(requireContext(), AlertMapActivity::class.java)
         }
     }
 

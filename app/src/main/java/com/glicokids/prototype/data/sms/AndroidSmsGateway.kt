@@ -23,14 +23,18 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Module 6 — requirement 1: sends the alert/summary SMS through the device's own
  * [SmsManager], the native SMS API the requirement asks for (no third-party app).
  *
- * [SmsManager.getDefault] is deprecated in favor of a subscription-aware overload aimed
- * at multi-SIM devices; that overload needs a subscription id this app has no meaningful
- * way to pick, and Robolectric's shadow only mirrors the deprecated call anyway. A single
- * code path that works across this project's whole SDK range — and that the test suite
- * can actually exercise — is worth more here than silencing a deprecation warning, so this
- * stays on [SmsManager.getDefault] on purpose instead of branching on `Build.VERSION.SDK_INT`.
+ * From API 31 the [SmsManager] comes from the system service rather than [SmsManager.getDefault],
+ * which is deprecated precisely because it cannot say which subscription should carry a message on
+ * a device with more than one active SIM. Older releases keep the legacy accessor, where it is the
+ * only option available.
  *
- * Etapa D field regression: a physical device showed "SMS ENVIADO" and wrote the throttle
+ * To be accurate about why: this was changed while chasing a send that failed with
+ * `RESULT_ERROR_GENERIC_FAILURE` on a dual-SIM device, and **it did not fix that failure** — the
+ * same error persisted afterwards, so the cause lies elsewhere, outside this class. The change was
+ * kept anyway because targeting a subscription explicitly is the correct API on every release this
+ * app supports, not because it repaired anything.
+ *
+ * A physical device showed "SMS ENVIADO" and wrote the throttle
  * for a message the carrier silently dropped. `SmsManager.sendTextMessage` only confirms the
  * request reached the radio — a carrier rejection, no-service state or invalid PDU is
  * reported later, through the `sentIntent` broadcast, never as a thrown exception. Passing
@@ -114,8 +118,7 @@ class AndroidSmsGateway @Inject constructor(
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT
                 )
 
-                @Suppress("DEPRECATION")
-                SmsManager.getDefault().sendTextMessage(phone, null, message, sentIntent, null)
+                smsManager().sendTextMessage(phone, null, message, sentIntent, null)
             } catch (e: Exception) {
                 // SmsManager rejects a malformed send (empty address/body) synchronously,
                 // before any broadcast is ever coming — nothing will call onReceive to
@@ -125,6 +128,20 @@ class AndroidSmsGateway @Inject constructor(
                     continuation.resumeWithException(e)
                 }
             }
+        }
+
+    /**
+     * From API 31 the system service is bound to whichever subscription the user set as their
+     * default for messaging, which is the only way to get this right on a phone with two active
+     * SIMs — see this class's own notes on the failure that made this necessary. Below that
+     * release the legacy accessor is the only one available.
+     */
+    private fun smsManager(): SmsManager =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(SmsManager::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            SmsManager.getDefault()
         }
 
     // Maps the sentIntent resultCode to its constant name, for logging. SmsManager only

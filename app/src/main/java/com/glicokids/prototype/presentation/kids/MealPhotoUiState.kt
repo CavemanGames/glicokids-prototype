@@ -1,7 +1,7 @@
 package com.glicokids.prototype.presentation.kids
 
 /**
- * Module 6 (Etapa D) — b9 real camera capture (`.artifacts/SPEC-camera-captura-real.md` §6).
+ * Real camera capture on b9.
  *
  * The view state `ivMealPhoto`/`ivPhotoPlaceholder` must end up in once a photo is (or is not)
  * present. Pulled out of `NewMealActivity` so the rule is covered by a plain JUnit test even
