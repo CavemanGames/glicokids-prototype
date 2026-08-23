@@ -1,13 +1,18 @@
 package com.glicokids.prototype.presentation.parents
 
+import android.app.Activity
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Bundle
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import com.glicokids.prototype.R
 import com.glicokids.prototype.databinding.ActivityAlertSettingsBinding
 import com.glicokids.prototype.domain.model.AlertMode
+import com.glicokids.prototype.util.SoundHelper
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -22,6 +27,36 @@ class AlertSettingsActivity : AppCompatActivity() {
     private val viewModel: AlertSettingsViewModel by viewModels()
 
     private val throttleOptions = listOf(15, 30, 60)
+
+    /** Module 8 — which of the three sound rows opened the shared picker below; read and
+     * cleared as soon as its result comes back. See SPEC-MODULO-8-SOM.md §13 for the accepted
+     * risk of this being in-memory state (lost on process death mid-picker). */
+    private var pendingSoundEvent: SoundHelper.SoundEvent? = null
+
+    private val ringtonePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val event = pendingSoundEvent ?: return@registerForActivityResult
+        pendingSoundEvent = null
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val pickedUri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        // Device defect (Samsung SM-S938B, Android 16): the system picker returns RESULT_OK even
+        // on Back, so `previousStored` (read before this call writes anything) lets
+        // SoundHelper.resolveStoredValue tell an untouched Back apart from a real pick.
+        val previousStored = storedSoundFor(event)
+        val stored = SoundHelper.resolveStoredValue(event, previousStored, pickedUri)
+        when (event) {
+            SoundHelper.SoundEvent.MEDAL_EARNED -> viewModel.setMedalSound(stored)
+            SoundHelper.SoundEvent.GLUCOSE_ALERT -> viewModel.setAlertSound(stored)
+            SoundHelper.SoundEvent.DOSE_CALCULATED -> viewModel.setDoseSound(stored)
+        }
+    }
+
+    private fun storedSoundFor(event: SoundHelper.SoundEvent): String? = when (event) {
+        SoundHelper.SoundEvent.MEDAL_EARNED -> viewModel.uiState.value?.medalSoundUri
+        SoundHelper.SoundEvent.GLUCOSE_ALERT -> viewModel.uiState.value?.alertSoundUri
+        SoundHelper.SoundEvent.DOSE_CALCULATED -> viewModel.uiState.value?.doseSoundUri
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +87,83 @@ class AlertSettingsActivity : AppCompatActivity() {
         binding.swIncludeLocation.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setIncludeLocation(isChecked)
         }
+
+        binding.swSoundEnabled.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setSoundEnabled(isChecked)
+        }
+
+        binding.rowMedalSound.setOnClickListener {
+            openRingtonePicker(SoundHelper.SoundEvent.MEDAL_EARNED, viewModel.uiState.value?.medalSoundUri)
+        }
+        binding.rowAlertSound.setOnClickListener {
+            openRingtonePicker(SoundHelper.SoundEvent.GLUCOSE_ALERT, viewModel.uiState.value?.alertSoundUri)
+        }
+        binding.rowDoseSound.setOnClickListener {
+            openRingtonePicker(SoundHelper.SoundEvent.DOSE_CALCULATED, viewModel.uiState.value?.doseSoundUri)
+        }
+    }
+
+    /** Opens the system's ringtone picker filtered to notification sounds — the one seam that
+     * both keeps sounds short (§4) and lets the picker itself show "Nenhum"/"Padrão" already
+     * translated to the device's language.
+     *
+     * Two states short-circuit straight to the picker's replacement, each with its own
+     * confirmation dialog instead: a row that already has a sound configured (any event — see
+     * [showChangeOrResetDialog], the "back to default" path decided by the human 23/08/2026) and a
+     * never-chosen `GLUCOSE_ALERT` (whose factory default is the app's own synthesized pattern,
+     * with no matching picker option — see [confirmReplacingAppAlertSound]). A never-chosen
+     * `MEDAL_EARNED`/`DOSE_CALCULATED` opens the picker directly, unchanged. */
+    private fun openRingtonePicker(event: SoundHelper.SoundEvent, currentStored: String?) {
+        when {
+            currentStored != null -> showChangeOrResetDialog(event, currentStored)
+            event == SoundHelper.SoundEvent.GLUCOSE_ALERT -> confirmReplacingAppAlertSound(event, currentStored)
+            else -> launchRingtonePicker(event, currentStored)
+        }
+    }
+
+    /** Shown when the row already has a sound configured (a chosen Uri or "Nenhum") — there was no
+     * way back to the factory default once a sound was picked, since the system picker offers no
+     * "App/device default" option of its own. Three outcomes: open the picker to choose another
+     * sound, reset this event back to `null` ("never chosen") without opening the picker, or leave
+     * everything untouched. */
+    private fun showChangeOrResetDialog(event: SoundHelper.SoundEvent, currentStored: String) {
+        val currentLabel = SoundHelper.labelFor(this, event, currentStored)
+        AlertDialog.Builder(this)
+            .setTitle("Som configurado")
+            .setMessage("Som atual: $currentLabel")
+            .setPositiveButton("Escolher outro som") { _, _ -> launchRingtonePicker(event, currentStored) }
+            .setNeutralButton("Voltar ao padrão") { _, _ -> resetToDefault(event) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /** Restores the event's factory default by writing `null` back — "Padrão do app" for the
+     * alert, "Padrão do aparelho" for medal/dose (SoundHelper.labelFor resolves the exact text). */
+    private fun resetToDefault(event: SoundHelper.SoundEvent) {
+        when (event) {
+            SoundHelper.SoundEvent.MEDAL_EARNED -> viewModel.setMedalSound(null)
+            SoundHelper.SoundEvent.GLUCOSE_ALERT -> viewModel.setAlertSound(null)
+            SoundHelper.SoundEvent.DOSE_CALCULATED -> viewModel.setDoseSound(null)
+        }
+    }
+
+    /** Shown only when the alert has never been configured — see [openRingtonePicker]. Cancelling
+     * changes nothing and never opens the picker. */
+    private fun confirmReplacingAppAlertSound(event: SoundHelper.SoundEvent, currentStored: String?) {
+        AlertDialog.Builder(this)
+            .setTitle("Trocar o som do alerta?")
+            .setMessage(
+                "Hoje, quando a glicemia sai da faixa, o app toca um som próprio do GlicoKids " +
+                    "(3 bipes). Se você escolher um som do aparelho agora, ele vai substituir esse som."
+            )
+            .setPositiveButton("Escolher som") { _, _ -> launchRingtonePicker(event, currentStored) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun launchRingtonePicker(event: SoundHelper.SoundEvent, currentStored: String?) {
+        pendingSoundEvent = event
+        ringtonePickerLauncher.launch(SoundHelper.buildRingtonePickerIntent(event, currentStored))
     }
 
     private fun showThrottleDialog() {
@@ -85,7 +197,47 @@ class AlertSettingsActivity : AppCompatActivity() {
             if (binding.swIncludeLocation.isChecked != state.includeLocation) {
                 binding.swIncludeLocation.isChecked = state.includeLocation
             }
+
+            if (binding.swSoundEnabled.isChecked != state.soundEnabled) {
+                binding.swSoundEnabled.isChecked = state.soundEnabled
+            }
+            binding.swSoundEnabled.contentDescription =
+                "Sons do app, ${stateLabel(state.soundEnabled)}"
+
+            applySoundRow(
+                binding.tvMedalSoundValue, binding.rowMedalSound,
+                "Som da medalha",
+                SoundHelper.labelFor(this, SoundHelper.SoundEvent.MEDAL_EARNED, state.medalSoundUri)
+            )
+            applySoundRow(
+                binding.tvAlertSoundValue, binding.rowAlertSound,
+                "Som do alerta de glicemia",
+                SoundHelper.labelFor(this, SoundHelper.SoundEvent.GLUCOSE_ALERT, state.alertSoundUri)
+            )
+            applySoundRow(
+                binding.tvDoseSoundValue, binding.rowDoseSound,
+                "Som da dose calculada",
+                SoundHelper.labelFor(this, SoundHelper.SoundEvent.DOSE_CALCULATED, state.doseSoundUri)
+            )
         }
+    }
+
+    private fun stateLabel(enabled: Boolean) = if (enabled) "ligado" else "desligado"
+
+    /** Applies a sound row's label, only touching the view when the value actually changed —
+     * same guard already used for the switches, so an identical re-emission of state does not
+     * rebuild the UI. `contentDescription` is set on the whole row (not just the value
+     * TextView), since the row itself is the 48dp click target. */
+    private fun applySoundRow(
+        valueView: android.widget.TextView,
+        row: LinearLayout,
+        label: String,
+        value: String
+    ) {
+        if (valueView.text != value) {
+            valueView.text = value
+        }
+        row.contentDescription = "$label, $value"
     }
 
     private fun recipientsLabel(count: Int): String =
