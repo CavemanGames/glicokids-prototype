@@ -30,7 +30,14 @@ class AlertSettingsViewModel @Inject constructor(
         val hyperLimit: Int,
         val recipientCount: Int,
         /** Module 7 — whether the alert SMS carries the child's approximate address. */
-        val includeLocation: Boolean
+        val includeLocation: Boolean,
+        /** Module 8 — the general sound switch and the three raw stored values (never the
+         * already-translated label: resolving a name needs a `Context`, and this ViewModel
+         * never touches one — that translation happens in the Activity via [SoundHelper]). */
+        val soundEnabled: Boolean,
+        val medalSoundUri: String?,
+        val alertSoundUri: String?,
+        val doseSoundUri: String?
     )
 
     private val _uiState = MutableLiveData<AlertSettingsUiState>()
@@ -65,6 +72,32 @@ class AlertSettingsViewModel @Inject constructor(
         publishState()
     }
 
+    // --- Sound prefs (Module 8) ---
+
+    /** General switch: silences all three events without erasing their per-event choices. */
+    fun setSoundEnabled(enabled: Boolean) {
+        prefs.soundEnabled = enabled
+        publishState()
+    }
+
+    /** `stored` already arrives translated by `SoundHelper.toStoredValue` — never a raw `Uri`. */
+    fun setMedalSound(stored: String?) {
+        prefs.medalSoundUri = stored
+        publishState()
+    }
+
+    /** `stored` already arrives translated by `SoundHelper.toStoredValue` — never a raw `Uri`. */
+    fun setAlertSound(stored: String?) {
+        prefs.alertSoundUri = stored
+        publishState()
+    }
+
+    /** `stored` already arrives translated by `SoundHelper.toStoredValue` — never a raw `Uri`. */
+    fun setDoseSound(stored: String?) {
+        prefs.doseSoundUri = stored
+        publishState()
+    }
+
     private fun publishState() {
         _uiState.value = AlertSettingsUiState(
             hypoMode = prefs.alertModeHypo,
@@ -74,7 +107,11 @@ class AlertSettingsViewModel @Inject constructor(
             hypoLimit = prefs.rangeMin,
             hyperLimit = prefs.rangeMax,
             recipientCount = dbHelper.getAlertRecipients().size,
-            includeLocation = prefs.alertIncludeLocation
+            includeLocation = prefs.alertIncludeLocation,
+            soundEnabled = prefs.soundEnabled,
+            medalSoundUri = prefs.medalSoundUri,
+            alertSoundUri = prefs.alertSoundUri,
+            doseSoundUri = prefs.doseSoundUri
         )
     }
 }

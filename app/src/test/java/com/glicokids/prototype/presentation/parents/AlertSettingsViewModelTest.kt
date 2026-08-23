@@ -122,4 +122,80 @@ class AlertSettingsViewModelTest {
 
         assertThat(vm.uiState.value!!.recipientCount).isEqualTo(2)
     }
+
+    // --- Module 8 (SPEC-MODULO-8-SOM.md §11, cases 18-20) ---
+    // RED phase: `AlertSettingsUiState.soundEnabled`/`medalSoundUri`/`alertSoundUri`/
+    // `doseSoundUri` are placeholder defaults (see AlertSettingsViewModel kdoc) and
+    // `setSoundEnabled`/`setMedalSound`/`setAlertSound`/`setDoseSound` are `TODO()` skeletons —
+    // every test below is expected to fail until the next phase wires the real logic.
+
+    // Case 18
+    @Test
+    fun `initial state reflects sound prefs and the three stored uris`() {
+        every { prefs.soundEnabled } returns true
+        every { prefs.medalSoundUri } returns "content://medal"
+        every { prefs.alertSoundUri } returns "content://alert"
+        every { prefs.doseSoundUri } returns "content://dose"
+        val vm = AlertSettingsViewModel(prefs, dbHelper)
+
+        val state = vm.uiState.value!!
+
+        assertThat(state.soundEnabled).isTrue()
+        assertThat(state.medalSoundUri).isEqualTo("content://medal")
+        assertThat(state.alertSoundUri).isEqualTo("content://alert")
+        assertThat(state.doseSoundUri).isEqualTo("content://dose")
+    }
+
+    // Case 19
+    @Test
+    fun `setMedalSound writes only the medal sound uri`() {
+        viewModel.setMedalSound("content://medal-x")
+
+        verify { prefs.medalSoundUri = "content://medal-x" }
+        verify(exactly = 0) { prefs.alertSoundUri = any() }
+        verify(exactly = 0) { prefs.doseSoundUri = any() }
+    }
+
+    @Test
+    fun `setAlertSound writes only the alert sound uri`() {
+        viewModel.setAlertSound("content://alert-x")
+
+        verify { prefs.alertSoundUri = "content://alert-x" }
+        verify(exactly = 0) { prefs.medalSoundUri = any() }
+        verify(exactly = 0) { prefs.doseSoundUri = any() }
+    }
+
+    @Test
+    fun `setDoseSound writes only the dose sound uri`() {
+        viewModel.setDoseSound("content://dose-x")
+
+        verify { prefs.doseSoundUri = "content://dose-x" }
+        verify(exactly = 0) { prefs.medalSoundUri = any() }
+        verify(exactly = 0) { prefs.alertSoundUri = any() }
+    }
+
+    @Test
+    fun `setMedalSound accepts null to store the silent sentinel translation`() {
+        viewModel.setMedalSound(null)
+
+        verify { prefs.medalSoundUri = null }
+    }
+
+    // Case 20
+    @Test
+    fun `setSoundEnabled writes the general switch without touching stored uris`() {
+        viewModel.setSoundEnabled(false)
+
+        verify { prefs.soundEnabled = false }
+        verify(exactly = 0) { prefs.medalSoundUri = any() }
+        verify(exactly = 0) { prefs.alertSoundUri = any() }
+        verify(exactly = 0) { prefs.doseSoundUri = any() }
+    }
+
+    @Test
+    fun `setSoundEnabled toggles back on`() {
+        viewModel.setSoundEnabled(true)
+
+        verify { prefs.soundEnabled = true }
+    }
 }
