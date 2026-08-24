@@ -14,6 +14,9 @@ Managing Type 1 Diabetes in childhood requires constant mathematical calculation
 - **Persistence**: `SharedPreferences` + `EncryptedSharedPreferences` (AES-256) + hand-written `SQLiteOpenHelper` (no Room)
 - **Navigation**: Navigation Component & Intents
 - **Device Communication**: `SmsManager` (native SMS), `Intent.ACTION_SENDTO` (`smsto:` and `mailto:`), `BroadcastReceiver` (incoming SMS), `NotificationManager`
+- **Location & Maps**: Google Maps SDK for Android (`SupportMapFragment`), `LocationManager` + Fused Location Provider, `Geocoder`
+- **Networking**: `HttpURLConnection` over `Dispatchers.IO`, JSON (`org.json`) and XML (`XmlPullParser`) parsing
+- **Sound Feedback**: `RingtoneManager` (`ACTION_RINGTONE_PICKER`), `ToneGenerator`
 
 ## 4. User Experience (UX)
 *   **Child Interface (Primary UI)**: Playful, colorful, and reward-focused. Features a central "Meal Mission" (photo capture), achievement panels (badges and XP), and daily challenges.
@@ -87,12 +90,7 @@ Report rules: generated from the last 7 days of SQLite data, never carries the c
 
 Glucose colouring has one source of truth, `UIHelper.glucoseStatus(value, min, max)`, fed by the configured range — there is no hardcoded 70 or 180 anywhere outside the defaults in `AppPreferences`.
 
-### Phase 5 (Planned)
-- **Onboarding Flow**: Responsible party registration (LGPD compliant).
-- **Hero Profile**: Child's profile customization and initial clinical setup.
-- **Secure Authentication**: Google Login integration and PIN creation/recovery system.
-
-### Phase 6: Device Communication (Module 6)
+### Phase 5: Device Communication (Module 6)
 
 The support network — the people a family already trusts to help — needed a channel that
 works the moment a child's glucose leaves the target range, without waiting for anyone to
@@ -205,6 +203,145 @@ the same lines send normally from the system messaging app. The failure is on th
 in the app: the call was accepted, the result intent came back, and the reason came from
 telephony. The alert screen reports exactly that — it does not claim the message was sent, does
 not start the cooldown, and does not offer to resend something that never left.
+
+### Phase 6: Location, Maps and Web Services (Module 7)
+
+Module 6 taught the app to message the support network the moment a reading leaves the target
+range. That message answered *what* and *when*, never *where* — the one thing a guardian reading
+an alert away from home needs most. This module adds that, plus the networking work needed to
+look food and nearby help up online instead of only in the bundled dataset.
+
+| # | Requirement | API / Class | Screen |
+|---|---|---|---|
+| 1 | Google Maps in a native view | `SupportMapFragment` + `GoogleMap` | Parent Area — Alert Map |
+| 2 | Zoom controls and map types | `uiSettings.isZoomControlsEnabled`, `GoogleMap.MAP_TYPE_*` via a chip group | Alert Map — Normal / Satellite / Hybrid / Terrain |
+| 3 | Geocoding, both directions | `AndroidGeocoder` (`Geocoder`, sync below API 33 / listener-based from 33) | Alert Map — tap-to-address and address search |
+| 4 | Device location, three technologies | `RawLocationDataSource` (`GPS_PROVIDER`, `NETWORK_PROVIDER`) + `FusedLocationProvider` | Alert Map — technology diagnostic list |
+| 5 | Location monitoring | `FusedLocationProvider.locationUpdates()` (`callbackFlow`, released on `awaitClose`) | Alert Map — "follow position" toggle |
+| 6 | HTTP requests off the main thread | `AndroidHttpClient` (`HttpURLConnection` inside `Dispatchers.IO`) | Backs requirements 7 and 8 below |
+| 7 | JSON web service | `OpenFoodFactsFoodSearchRepository` / `OverpassNearbyHealthPlacesRepository` (both parsed with `org.json`) | Meal screen — online food search; Alert Map — nearby health places |
+| 8 | XML web service | `NominatimXmlParser` (`XmlPullParser`), fallback path only | Alert Map — reverse geocoding when the platform `Geocoder` is unavailable |
+| — | Sockets — deliberately not used | n/a | see below |
+
+**Where each requirement lives.** All of it sits behind one PIN-protected screen, the Alert Map
+(`AlertMapActivity` + `AlertMapViewModel`), except the online food lookup, which extends the
+existing Meal screen (`NewMealViewModel`) with a network fallback next to the bundled food table
+seeded in Module 5. Every decision — what to display, what a tap or search resolves to, whether
+"follow" is allowed — lives in the ViewModel and is unit-tested there, since Robolectric has no
+shadow for `GoogleMap` itself; the Activity only wires that state onto the screen.
+
+**Three technologies, one honest limit.** GPS, cell tower and Wi-Fi positioning are compared
+side by side on the diagnostic list, each with its own accuracy radius. The public Android API
+does not let an app ask the fused provider which technology produced a fix — it reports itself
+simply as `"fused"` — and `LocationManager` itself only separates `GPS_PROVIDER` from
+`NETWORK_PROVIDER`, the second one covering cell towers and Wi-Fi together. Showing "Wi-Fi
+accuracy" apart from "cell tower accuracy" would be invented; showing GPS next to network,
+honestly, is what the screen does.
+
+**The alert always goes out.** Whether or not a location resolves is never allowed to gate the
+SMS itself: `ResolveAlertLocationUseCase` runs under its own time budget and returns `null` on a
+missing permission, a timeout or an unavailable geocoder, and the alert is sent either way — with
+or without an address. A child with a low reading is not helped by an app that waited on a GPS
+fix. Including the location in an alert ships **on by default** (`AppPreferences.alertIncludeLocation`,
+`AlertSettingsActivity`), on the reasoning that a safety feature requiring setup is reliably off
+exactly when it matters; the setting is visible and can be turned off, and the Android location
+permission remains a second, independent gate the guardian controls. No position is stored beyond
+the most recent alert, which is overwritten by the next one — there is no movement history and no
+background location permission requested.
+
+**Consuming both JSON and XML was a deliberate choice, not a coincidence of two libraries.** The
+same technique introduced in Module 5 to seed the food table from a bundled resource
+(`org.json`) now also reads a live response: food search against Open Food Facts and the nearby
+health-place lookup against the Overpass API (OpenStreetMap) both return structured lists, so JSON
+plus `org.json` is the natural fit. Reverse geocoding through OpenStreetMap's Nominatim, by
+contrast, is the fallback path used only when the platform `Geocoder` has nothing to offer, and its
+response is one shallow element holding a formatted address — the shape where a forward-only
+`XmlPullParser` is the right tool, with no document tree built for a single value.
+
+**Sockets were considered and left out on purpose.** GlicoKids has no counterpart on the other
+end of a persistent connection: every external interaction is either an on-demand HTTP fetch or a
+message to a guardian who is not a user of the system. A socket's whole advantage is letting the
+other side speak first, and there is no other side here — holding a connection open would cost
+battery and add a failure mode for a capability this product does not need.
+
+**A correction to the Module 6 record.** Incoming SMS (requirement 3 of Module 6) was removed
+during this module, then restored once removing it broke outgoing SMS on the test device — the
+receiver being present turned out to have no bearing on that failure, but restoring it also
+proved requirement 3 for the first time on a physical phone rather than by recollection. The
+schema advanced to version 5 to recreate the `received_messages` table dropped on the way to
+version 4, rather than being reverted, since `SQLiteOpenHelper.onDowngrade` throws on a device
+already migrated forward. Separately, the Module 6 record's claim that SMS sending is
+fire-and-forget with no `sentIntent` no longer holds: the gateway now registers a one-shot
+receiver and waits for the system's delivery confirmation, which is what surfaces the send
+failure below instead of hiding it.
+
+**Sending an SMS directly stopped working on the test device, and the app is not at fault.** The
+radio rejects the send in roughly ten milliseconds with `RESULT_ERROR_GENERIC_FAILURE` — too fast
+for a real carrier rejection, which means nothing left the phone. Permission, SIM, number format,
+carrier and RCS were each ruled out by direct measurement; what remains is that only the device's
+default SMS app is normally granted this capability, and making GlicoKids eligible for that role
+would turn it into a messaging app, which is precisely what it must not become. Receiving SMS,
+unlike sending, was verified end to end on the physical device.
+
+**What on-device testing found.** The layers that hold rules — deciding what to display,
+formatting an address, parsing a response, choosing between a satellite and a network fix — are
+covered by unit tests with fakes. Rendering a real map, the accuracy of an actual GPS fix, and an
+SMS carrying an address arriving on a second phone are not verifiable that way and were checked on
+a physical device instead. An emulator image without Google Play Services renders no map at all
+and returns nothing from the geocoder, which is why this device pass, not the emulator, is the
+one that matters here — the same finding Module 6 already made about SMS.
+
+**Privacy.** The message stays anonymised exactly as Module 6 established — first name and
+initial, never the full name. Nothing is transmitted while nothing is wrong: position leaves the
+device only inside an alert the family configured, to contacts the family registered, and no
+trail is kept beyond the single most recent point.
+
+### Phase 7: Sound Feedback (Module 8)
+
+The app had no sound at all up to this point — a child looking away from the screen could miss
+the moment that matters most, a glucose reading leaving the target range. This module gives three
+moments a voice: a medal earned, a dose calculated, and a glucose alert.
+
+| # | Requirement | Where | Sound |
+|---|---|---|---|
+| 1 | Medal earned | `RewardActivity` | device notification sound (or the caregiver's choice) |
+| 2 | Dose calculated | `NewMealActivity` | device notification sound (or the caregiver's choice) |
+| 3 | Glucose alert | `GlucoseAlertActivity` | a synthesized three-beep pattern (or the caregiver's choice) |
+
+**Every sound is chosen by the responsible adult, never invented by the app.** Each of the three
+rows in the Parent Area (`AlertSettingsActivity`) opens Android's own `ACTION_RINGTONE_PICKER`,
+filtered to `TYPE_NOTIFICATION` (`SoundHelper.buildRingtonePickerIntent`) — the same filter that
+keeps the picker's list to short notification sounds instead of full ringtones, and gets it shown
+already translated by the system. **No audio file ships with the app**: the three events either
+play a sound already on the device or, for the alert with nothing chosen, a pattern the app
+generates itself with `ToneGenerator`.
+
+**The alert is not allowed to sound like a celebration.** Out of the box, before any preference is
+touched, the glucose alert plays its own three-beep pattern (`SoundHelper.playAlertPattern`, three
+`TONE_CDMA_ALERT_CALL_GUARD` tones on `STREAM_NOTIFICATION`) while the medal and the dose play the
+phone's default notification sound — an emergency has to read differently from good news the first
+time it happens, before a parent has configured anything.
+
+**One switch silences all three without forgetting any of them.** `AppPreferences.soundEnabled`
+(`swSoundEnabled` in `activity_alert_settings.xml`, on by default) mutes every event; turning it
+back on restores exactly what was chosen for each one, because the individual choices are never
+erased, only ignored while the switch is off.
+
+A stored preference carries one of three meanings, not two — never chosen (the factory default
+applies), chosen as "Nenhum" (silence, via a sentinel value), or chosen as a specific sound —
+because "never chosen" and "silenced on purpose" lead to opposite behaviour on the alert, and
+collapsing them into a single `null` would have picked one behaviour for both.
+
+**What on-device testing found.** Two defects lived entirely in screen wiring the JVM suite
+cannot reach and surfaced only on a physical phone (Samsung SM-S938B, Android 16): the picker
+opened showing "Silent" selected for a sound that was actually the phone's default, because a
+missing existing-Uri extra reads as silence to the system picker; and this device's picker returns
+`RESULT_OK` on Back, so opening a row and backing out was saving whatever the picker happened to
+have marked. Both are fixed — the Intent-building logic moved into a plain function
+(`SoundHelper.buildRingtonePickerIntent` / `resolveStoredValue`) precisely so a mistake like this
+fails a test next time instead of a phone. The suite reached 402 unit tests by the end of this
+module; the screen-wiring cases have no automated coverage, consistent with this project's existing
+practice of not testing Activities under Robolectric, and were verified on the device instead.
 
 ## 7. Running the Map
 
