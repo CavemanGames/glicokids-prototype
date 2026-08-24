@@ -343,6 +343,21 @@ fails a test next time instead of a phone. The suite reached 402 unit tests by t
 module; the screen-wiring cases have no automated coverage, consistent with this project's existing
 practice of not testing Activities under Robolectric, and were verified on the device instead.
 
+### What comes next
+
+Three directions, each one an extension of infrastructure the app already has rather than a new
+foundation:
+
+- **Real glucose sensor.** The automatic alert path is built and works today — a reading outside the
+  target range reaches the support network by SMS without anyone pressing anything. What is missing is
+  the source: readings currently marked as `SENSOR` are chosen on screen, not produced by hardware.
+  Connecting a continuous sensor, sampled in the background, closes the loop.
+- **Carbohydrate estimation from the meal photo.** The camera step is already part of the "Meal
+  Mission" flow; the number still comes from the child or from the food table. Estimating it from the
+  picture removes the last piece of arithmetic from the routine.
+- **Gamification tied to physical activity.** Rewards today follow the clinical routine. Extending
+  them to movement addresses the sedentary side of the condition, not only the glucose side.
+
 ## 7. Running the Map
 
 Module 7 adds Google Maps to the app, which means anyone building it from source needs their own API key — none is bundled with the repository. Create a project in the Google Cloud Console, enable the **Maps SDK for Android**, then create an API key and restrict it to Android apps, listing the package name (`com.glicokids.prototype`) and the SHA-1 fingerprint of your own debug certificate (`./gradlew signingReport` prints it). Drop the key into `local.properties` at the repository root as `MAPS_API_KEY=YOUR_KEY_HERE`; that file is git-ignored and is never committed. One thing that trips people up: the Google Maps Platform requires an active billing account on the Cloud project even to stay within the free tier, and a key created without one is silently rejected — the map fails to render exactly as it would with no key at all, which makes the two cases easy to confuse. Building and running without a key is expected to work — it's what CI does — the map view just won't render anything.
