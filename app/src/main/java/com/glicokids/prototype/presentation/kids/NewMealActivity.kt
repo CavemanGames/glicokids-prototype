@@ -15,6 +15,7 @@ import com.glicokids.prototype.data.local.AppPreferences
 import com.glicokids.prototype.data.local.GlicoKidsDbHelper
 import com.glicokids.prototype.data.model.MealEntry
 import com.glicokids.prototype.databinding.ActivityNewMealBinding
+import com.glicokids.prototype.util.SoundHelper
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -199,6 +200,8 @@ class NewMealActivity : AppCompatActivity() {
     private fun saveMeal(dose: Double, glucose: Int) {
         if (mealSaved) return
         mealSaved = true
+
+        SoundHelper.play(this, SoundHelper.SoundEvent.DOSE_CALCULATED, prefs)
 
         val carbs = binding.etCarbohydrates.text.toString()
             .replace(',', '.').toDoubleOrNull() ?: return

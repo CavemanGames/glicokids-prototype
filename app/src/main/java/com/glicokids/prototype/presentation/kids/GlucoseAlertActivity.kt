@@ -12,6 +12,7 @@ import com.glicokids.prototype.databinding.ActivityGlucoseAlertBinding
 import com.glicokids.prototype.databinding.ItemAlertRecipientBinding
 import com.glicokids.prototype.domain.model.AlertDirection
 import com.glicokids.prototype.domain.model.ReadingSource
+import com.glicokids.prototype.util.SoundHelper
 import com.glicokids.prototype.util.UIHelper
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
@@ -81,6 +82,10 @@ class GlucoseAlertActivity : AppCompatActivity() {
         if (prefs.alertIncludeLocation) {
             requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+
+        // Fires once per opening of this screen, not per uiState re-emission — same reasoning
+        // as lastSendFailedMessage, kept outside observeViewModel so a rotation never repeats it.
+        SoundHelper.play(this, SoundHelper.SoundEvent.GLUCOSE_ALERT, prefs)
 
         renderStaticInfo(value, timestampMillis, source)
         setupListeners()

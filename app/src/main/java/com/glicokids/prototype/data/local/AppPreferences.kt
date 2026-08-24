@@ -167,6 +167,28 @@ class AppPreferences @Inject constructor(
             .apply()
     }
 
+    // --- Sound prefs (Module 8) ---
+
+    /** General switch: silences all three events without erasing their individual choices. */
+    var soundEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SOUND_ENABLED, DEFAULT_SOUND_ENABLED)
+        set(value) = prefs.edit().putBoolean(KEY_SOUND_ENABLED, value).apply()
+
+    /** `null` = never chosen (factory default applies); [SILENT_SOUND_URI] = "Nenhum" chosen. */
+    var medalSoundUri: String?
+        get() = prefs.getString(KEY_MEDAL_SOUND_URI, null)
+        set(value) = prefs.edit().putString(KEY_MEDAL_SOUND_URI, value).apply()
+
+    /** `null` = never chosen (synthesized factory pattern applies); [SILENT_SOUND_URI] = "Nenhum". */
+    var alertSoundUri: String?
+        get() = prefs.getString(KEY_ALERT_SOUND_URI, null)
+        set(value) = prefs.edit().putString(KEY_ALERT_SOUND_URI, value).apply()
+
+    /** `null` = never chosen (factory default applies); [SILENT_SOUND_URI] = "Nenhum" chosen. */
+    var doseSoundUri: String?
+        get() = prefs.getString(KEY_DOSE_SOUND_URI, null)
+        set(value) = prefs.edit().putString(KEY_DOSE_SOUND_URI, value).apply()
+
     companion object {
         const val PREFS_NAME = "glicokids_prefs"
 
@@ -194,6 +216,12 @@ class AppPreferences @Inject constructor(
         const val KEY_LAST_ALERT_LOCATION_LNG = "last_alert_location_lng"
         const val KEY_LAST_ALERT_LOCATION_AT = "last_alert_location_at"
 
+        // --- Sound prefs (Module 8) ---
+        const val KEY_SOUND_ENABLED = "sound_enabled"
+        const val KEY_MEDAL_SOUND_URI = "medal_sound_uri"
+        const val KEY_ALERT_SOUND_URI = "alert_sound_uri"
+        const val KEY_DOSE_SOUND_URI = "dose_sound_uri"
+
         const val DEFAULT_CHILD_NAME = "Lucas"
         const val DEFAULT_RANGE_MIN = 70
         const val DEFAULT_RANGE_MAX = 180
@@ -212,6 +240,15 @@ class AppPreferences @Inject constructor(
         /** Emergency feature: defaults to on, never to off-until-configured. */
         const val DEFAULT_ALERT_INCLUDE_LOCATION = true
         const val DEFAULT_LAST_ALERT_LOCATION_AT = 0L
+
+        /** Module 8 — the general sound switch defaults to on. */
+        const val DEFAULT_SOUND_ENABLED = true
+
+        /** Sentinel written when the caregiver picks "Nenhum" in the ringtone picker (which
+         * itself returns `null` for that choice) — never confused with "never chosen" (`null`
+         * stored), since the two states lead to opposite behavior for the glucose alert event.
+         * Not a real URI: never passed to [android.media.RingtoneManager.getRingtone]. */
+        const val SILENT_SOUND_URI = "silent"
 
         /**
          * Absolute bounds allowed when editing the target range: wide enough to
